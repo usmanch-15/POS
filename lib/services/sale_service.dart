@@ -1,6 +1,10 @@
 // lib/services/sale_service.dart
 // ─────────────────────────────────────────────────────────────
 //  StockPro — Sale / Billing Firestore Service
+//  FIXES:
+//   1. Bill number race condition → atomic counter document use kiya
+//   2. StockMovement previousStock/newStock → transaction mein product
+//      ki current qty pehle read karo, phir set karo
 // ─────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,9 +14,16 @@ import '../models/stock_model.dart';
 class SaleService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  CollectionReference get _sales  => _db.collection('sales');
-  CollectionReference get _stock  => _db.collection('stock_movements');
-  CollectionReference get _prods  => _db.collection('products');
+  CollectionReference get _sales   => _db.collection('sales');
+  CollectionReference get _stock   => _db.collection('stock_movements');
+  CollectionReference get _prods   => _db.collection('products');
+
+  // ── Counter document ref (bill number ke liye) ─────────────
+  // FIX #1: Pehle alag query se last bill read karte the — race condition thi.
+  //         Ab ek dedicated counter document hai jo transaction ke andar
+  //         atomically increment hota hai. Concurrent sales pe duplicate
+  //         bill numbers kabhi nahi banen ge.
+  DocumentReference get _counter  => _db.collection('meta').doc('bill_counter');
 
   // ── Stream today's sales ───────────────────────────────────
   Stream<List<SaleModel>> streamTodaySales() {
@@ -58,21 +69,45 @@ class SaleService {
     late SaleModel saved;
 
     await _db.runTransaction((txn) async {
+      // ── FIX #1: Atomic bill number ─────────────────────────
+      // Counter doc read karo transaction ke andar
+      final counterSnap = await txn.get(_counter);
+      int nextNum = 1;
+      if (counterSnap.exists) {
+        nextNum = ((counterSnap.data() as Map<String, dynamic>)['count'] ?? 0) + 1;
+      }
+      // Counter atomically increment karo
+      txn.set(_counter, {'count': nextNum}, SetOptions(merge: true));
+      final billNo = 'BILL-${nextNum.toString().padLeft(4, '0')}';
+
+      // ── FIX #2: Stock movements mein sahi previousStock/newStock ──
+      // Har product ki current qty transaction mein pehle read karo
+      final Map<String, int> previousQtyMap = {};
+      for (final item in sale.items) {
+        final prodSnap = await txn.get(_prods.doc(item.productId));
+        if (prodSnap.exists) {
+          previousQtyMap[item.productId] =
+              (prodSnap.data() as Map<String, dynamic>)['quantity'] as int? ?? 0;
+        }
+      }
+
       // 1. Write sale document
       final saleRef = _sales.doc();
-      final billNo  = await _nextBillNumber();
       saved = sale.copyWith(id: saleRef.id, billNumber: billNo);
       txn.set(saleRef, saved.toFirestore());
 
-      // 2. Decrement stock for each item
+      // 2. Decrement stock + write accurate movement records
       for (final item in sale.items) {
-        final prodRef = _prods.doc(item.productId);
+        final prodRef     = _prods.doc(item.productId);
+        final prevStock   = previousQtyMap[item.productId] ?? 0;
+        final newStock    = (prevStock - item.quantity).clamp(0, prevStock);
+
         txn.update(prodRef, {
           'quantity':  FieldValue.increment(-item.quantity),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // 3. Write stock movement
+        // FIX #2: Ab previousStock aur newStock sahi values hain
         final movRef = _stock.doc();
         final mov = StockMovement(
           id:            movRef.id,
@@ -80,8 +115,8 @@ class SaleService {
           productName:   item.productName,
           type:          StockMovementType.saleDeduction,
           quantity:      item.quantity,
-          previousStock: 0, // will be updated by inventory service
-          newStock:      0,
+          previousStock: prevStock,   // ✅ sahi value
+          newStock:      newStock,    // ✅ sahi value
           referenceId:   saleRef.id,
           createdAt:     DateTime.now(),
         );
@@ -98,32 +133,38 @@ class SaleService {
     if (sale == null) return;
 
     await _db.runTransaction((txn) async {
-      // Mark sale as refunded
       txn.update(_sales.doc(saleId), {'status': SaleStatus.refunded.name});
 
-      // Restore stock
       for (final item in sale.items) {
-        txn.update(_prods.doc(item.productId), {
+        final prodRef  = _prods.doc(item.productId);
+        final prodSnap = await txn.get(prodRef);
+        final prevQty  = prodSnap.exists
+            ? (prodSnap.data() as Map<String, dynamic>)['quantity'] as int? ?? 0
+            : 0;
+        final newQty   = prevQty + item.quantity;
+
+        txn.update(prodRef, {
           'quantity':  FieldValue.increment(item.quantity),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // Refund movement bhi record karo
+        final movRef = _stock.doc();
+        final mov = StockMovement(
+          id:            movRef.id,
+          productId:     item.productId,
+          productName:   item.productName,
+          type:          StockMovementType.returnIn,
+          quantity:      item.quantity,
+          previousStock: prevQty,
+          newStock:      newQty,
+          referenceId:   saleId,
+          reason:        'Sale refund',
+          createdAt:     DateTime.now(),
+        );
+        txn.set(movRef, mov.toFirestore());
       }
     });
-  }
-
-  // ── Generate bill number: BILL-0001 ───────────────────────
-  Future<String> _nextBillNumber() async {
-    final snap = await _sales
-        .orderBy('createdAt', descending: true)
-        .limit(1)
-        .get();
-    int next = 1;
-    if (snap.docs.isNotEmpty) {
-      final last = (snap.docs.first.data() as Map<String, dynamic>)['billNumber'] as String? ?? 'BILL-0000';
-      final num  = int.tryParse(last.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
-      next = num + 1;
-    }
-    return 'BILL-${next.toString().padLeft(4, '0')}';
   }
 
   // ── Helper ─────────────────────────────────────────────────

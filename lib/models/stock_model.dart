@@ -5,16 +5,20 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum StockMovementType { stockIn, stockOut, adjustment, saleDeduction, returned }
+enum StockMovementType { stockIn, stockOut, adjustment, saleDeduction, returned, returnIn }
 
 extension StockMovementTypeExt on StockMovementType {
   String get label {
-    switch (this) {
-      case StockMovementType.stockIn:       return 'Stock In';
-      case StockMovementType.stockOut:      return 'Stock Out';
-      case StockMovementType.adjustment:    return 'Adjustment';
-      case StockMovementType.saleDeduction: return 'Sale';
-      case StockMovementType.returned:      return 'Returned';
+    if (this case StockMovementType.stockIn) {
+       return 'Stock In';
+    } else if (this case StockMovementType.stockOut) {
+      return 'Stock Out';
+    } else if (this case StockMovementType.adjustment) {
+          return 'Adjustment';
+    } else if (this case StockMovementType.saleDeduction) {
+       return 'Sale';
+    } else if (this case StockMovementType.returned) {
+      return 'Returned';
     }
   }
 

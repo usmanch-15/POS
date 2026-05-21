@@ -1,6 +1,9 @@
 // lib/services/report_service.dart
 // ─────────────────────────────────────────────────────────────
 //  StockPro — Reports & Analytics Service
+//  FIX: getWeeklySalesChart() 7 alag Firestore calls karta tha.
+//       Ab single date range query se sab kuch ek call mein
+//       fetch hota hai — 7x reads se 1x read.
 // ─────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -40,21 +43,58 @@ class ReportService {
     );
   }
 
-  // ── Last 7 days chart data ─────────────────────────────────
+  // ── Last 7 days chart data — FIX ──────────────────────────
+  // PEHLE: Loop mein 7 baar getDailySummary() call hota tha.
+  //        Har call = 1 Firestore query → total 7 queries.
+  //
+  // AB:    Single query se poore 7 din ka data ek baar mein aata hai.
+  //        Phir Dart mein groupBy karke har din ki summary banate hain.
+  //        7 reads → 1 read.
   Future<List<ChartDataPoint>> getWeeklySalesChart() async {
+    final now  = DateTime.now();
+    final from = DateTime(now.year, now.month, now.day)
+        .subtract(const Duration(days: 6)); // 7 din pehle ki subah
+    final to   = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    // Single query — 7 din ka poora data
+    final snap = await _sales
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(from))
+        .where('createdAt', isLessThanOrEqualTo:    Timestamp.fromDate(to))
+        .where('status', isEqualTo: SaleStatus.completed.name)
+        .get();
+
+    final sales = snap.docs
+        .map((d) => SaleModel.fromFirestore(d.data() as Map<String, dynamic>, d.id))
+        .toList();
+
+    // Dart mein groupBy karo — date ke hisab se
+    final Map<String, List<SaleModel>> grouped = {};
+    for (int i = 6; i >= 0; i--) {
+      final day = now.subtract(Duration(days: i));
+      final key = '${day.year}-${day.month}-${day.day}';
+      grouped[key] = [];
+    }
+    for (final sale in sales) {
+      final d   = sale.createdAt;
+      final key = '${d.year}-${d.month}-${d.day}';
+      grouped[key]?.add(sale);
+    }
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final List<ChartDataPoint> points = [];
-    final now = DateTime.now();
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     for (int i = 6; i >= 0; i--) {
-      final day     = now.subtract(Duration(days: i));
-      final summary = await getDailySummary(day);
+      final day    = now.subtract(Duration(days: i));
+      final key    = '${day.year}-${day.month}-${day.day}';
+      final daySales = grouped[key] ?? [];
+
       points.add(ChartDataPoint(
-        label:  days[day.weekday - 1],
-        value:  summary.totalSales,
-        value2: summary.totalProfit,
+        label:  dayNames[day.weekday - 1],
+        value:  daySales.fold(0.0, (s, sale) => s + sale.total),
+        value2: daySales.fold(0.0, (s, sale) => s! + sale.totalProfit),
       ));
     }
+
     return points;
   }
 
@@ -82,12 +122,12 @@ class ReportService {
         .fold(0.0, (s, d) => s + ((d.data() as Map)['amount'] ?? 0).toDouble());
 
     return MonthlySummary(
-      month:          month,
-      year:           year,
-      totalSales:     sales.fold(0.0, (s, sale) => s + sale.total),
-      totalProfit:    sales.fold(0.0, (s, sale) => s + sale.totalProfit),
-      totalExpenses:  totalExpenses,
-      billCount:      sales.length,
+      month:         month,
+      year:          year,
+      totalSales:    sales.fold(0.0, (s, sale) => s + sale.total),
+      totalProfit:   sales.fold(0.0, (s, sale) => s + sale.totalProfit),
+      totalExpenses: totalExpenses,
+      billCount:     sales.length,
     );
   }
 
@@ -144,7 +184,6 @@ class ReportService {
         .map((d) => SaleModel.fromFirestore(d.data() as Map<String, dynamic>, d.id))
         .toList();
 
-    // Aggregate by product
     final Map<String, TopProduct> map = {};
     for (final sale in sales) {
       for (final item in sale.items) {

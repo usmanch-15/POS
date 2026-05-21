@@ -1,6 +1,10 @@
 // lib/services/product_service.dart
 // ─────────────────────────────────────────────────────────────
 //  StockPro — Product Firestore Service
+//  FIX: searchByName() poori collection load karta tha Dart mein
+//       filter karne ke liye — 1000+ products pe bahut slow.
+//       Ab Firestore prefix query use hoti hai (startAt/endAt).
+//       Yeh sirf matching range ke documents fetch karta hai.
 // ─────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,7 +21,7 @@ class ProductService {
     if (activeOnly) query = query.where('isActive', isEqualTo: true);
     return query.snapshots().map((snap) => snap.docs
         .map((d) => ProductModel.fromFirestore(
-              d.data() as Map<String, dynamic>, d.id))
+        d.data() as Map<String, dynamic>, d.id))
         .toList());
   }
 
@@ -28,9 +32,9 @@ class ProductService {
         .where('isActive', isEqualTo: true)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => ProductModel.fromFirestore(
-                  d.data() as Map<String, dynamic>, d.id))
-            .toList());
+        .map((d) => ProductModel.fromFirestore(
+        d.data() as Map<String, dynamic>, d.id))
+        .toList());
   }
 
   // ── Fetch all (one-time) ───────────────────────────────────
@@ -41,7 +45,7 @@ class ProductService {
         .get();
     return snap.docs
         .map((d) => ProductModel.fromFirestore(
-              d.data() as Map<String, dynamic>, d.id))
+        d.data() as Map<String, dynamic>, d.id))
         .toList();
   }
 
@@ -63,15 +67,38 @@ class ProductService {
         snap.docs.first.data() as Map<String, dynamic>, snap.docs.first.id);
   }
 
-  // ── Search by name ─────────────────────────────────────────
+  // ── Search by name — FIX ───────────────────────────────────
+  // PEHLE: Saare products load karta tha, Dart mein contains() filter.
+  //        1000 products = 1000 Firestore reads har search pe.
+  //
+  // AB:    Firestore prefix query — sirf us range ke documents aate hain
+  //        jo query string se shuru hote hain.
+  //        Example: "che" search → "Cheese", "Cheetos" etc. milenge.
+  //
+  // NOTE:  Firestore mein mid-word search nahi hoti (jaise "heese" se
+  //        "Cheese" nahi milega). Iske liye Algolia best option hai.
+  //        Yeh fix basic name search ko fast banata hai.
+  //
+  // Firestore Index zaroori:  isActive ASC + nameLower ASC
   Future<List<ProductModel>> searchByName(String query) async {
-    final lower = query.toLowerCase();
-    final snap  = await _col.where('isActive', isEqualTo: true).get();
+    if (query.trim().isEmpty) return getProducts();
+
+    final lower = query.toLowerCase().trim();
+    final end   = lower.substring(0, lower.length - 1) +
+        String.fromCharCode(lower.codeUnitAt(lower.length - 1) + 1);
+
+    // Prefix range query — sirf matching documents fetch hote hain
+    final snap = await _col
+        .where('isActive',   isEqualTo: true)
+        .where('nameLower',  isGreaterThanOrEqualTo: lower)
+        .where('nameLower',  isLessThan: end)
+        .orderBy('nameLower')
+        .limit(50)
+        .get();
+
     return snap.docs
         .map((d) => ProductModel.fromFirestore(
-              d.data() as Map<String, dynamic>, d.id))
-        .where((p) => p.name.toLowerCase().contains(lower) ||
-            (p.barcode?.contains(lower) ?? false))
+        d.data() as Map<String, dynamic>, d.id))
         .toList();
   }
 
@@ -84,19 +111,26 @@ class ProductService {
         .get();
     return snap.docs
         .map((d) => ProductModel.fromFirestore(
-              d.data() as Map<String, dynamic>, d.id))
+        d.data() as Map<String, dynamic>, d.id))
         .toList();
   }
 
   // ── Add ────────────────────────────────────────────────────
+  // NOTE: addProduct() mein 'nameLower' field bhi save karo
+  //       taake searchByName() kaam kare.
   Future<ProductModel> addProduct(ProductModel product) async {
-    final ref = await _col.add(product.toFirestore());
+    final data = product.toFirestore();
+    data['nameLower'] = product.name.toLowerCase(); // search ke liye
+    final ref = await _col.add(data);
     return product.copyWith(id: ref.id);
   }
 
   // ── Update ─────────────────────────────────────────────────
-  Future<void> updateProduct(ProductModel product) =>
-      _col.doc(product.id).update(product.toFirestore());
+  Future<void> updateProduct(ProductModel product) {
+    final data = product.toFirestore();
+    data['nameLower'] = product.name.toLowerCase(); // search ke liye
+    return _col.doc(product.id).update(data);
+  }
 
   // ── Update quantity only (atomic) ─────────────────────────
   Future<void> updateQuantity(String productId, int newQty) =>
