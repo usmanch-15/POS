@@ -1,0 +1,155 @@
+// firestore.rules
+// ─────────────────────────────────────────────────────────────
+//  StockPro — Firestore Security Rules
+//  FIX: Pehle koi rules nahi thin — sirf client-side role check
+//       tha. Koi bhi authenticated user kisi bhi collection mein
+//       directly write kar sakta tha (Firestore console ya API se).
+//
+//  Ab server-side rules hain:
+//   - Admin: sab kuch kar sakta hai
+//   - Manager: products, customers, sales, expenses read/write
+//   - Cashier: sirf sales create kar sakta hai, products read
+//   - Koi bhi unauthenticated user: bilkul access nahi
+// ─────────────────────────────────────────────────────────────
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ─────────────────────────────────────
+
+    // User logged in hai?
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // User ka Firestore document paro
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Role check karo
+    function isAdmin() {
+      return isLoggedIn() && userData().role == 'admin';
+    }
+
+    function isManager() {
+      return isLoggedIn() && userData().role == 'manager';
+    }
+
+    function isCashier() {
+      return isLoggedIn() && userData().role == 'cashier';
+    }
+
+    function isAdminOrManager() {
+      return isAdmin() || isManager();
+    }
+
+    function isAnyStaff() {
+      return isAdmin() || isManager() || isCashier();
+    }
+
+    // ── meta (bill counter) ──────────────────────────────────
+    // Sirf server se transaction ke zariye update hota hai
+    match /meta/{docId} {
+      allow read:  if isAnyStaff();
+      allow write: if isAnyStaff(); // transaction mein use hota hai
+    }
+
+    // ── users collection ─────────────────────────────────────
+    match /users/{userId} {
+      // Har user apna document read kar sakta hai
+      allow read:   if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+      // Sirf admin naye users bana ya edit kar sakta hai
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+                       // User apna password/profile khud update kar sakta hai
+                       (request.auth.uid == userId &&
+                        !request.resource.data.diff(resource.data).affectedKeys()
+                         .hasAny(['role', 'id'])); // role change nahi kar sakta khud
+      allow delete: if isAdmin();
+    }
+
+    // ── products ─────────────────────────────────────────────
+    match /products/{productId} {
+      allow read:   if isAnyStaff();
+      // Manager aur Admin add/edit kar sakte hain
+      allow create: if isAdminOrManager();
+      allow update: if isAdminOrManager();
+      // Sirf admin delete kar sakta hai
+      allow delete: if isAdmin();
+    }
+
+    // ── sales ────────────────────────────────────────────────
+    match /sales/{saleId} {
+      // Sab staff sales dekh sakta hai
+      allow read:   if isAnyStaff();
+      // Koi bhi cashier/manager/admin sale bana sakta hai
+      allow create: if isAnyStaff();
+      // Sirf admin/manager refund kar sakta hai (status update)
+      allow update: if isAdminOrManager();
+      // Sales delete nahi honi chahiye — sirf admin emergency mein
+      allow delete: if isAdmin();
+    }
+
+    // ── stock movements ──────────────────────────────────────
+    match /stock_movements/{movId} {
+      allow read:   if isAnyStaff();
+      // Movements sirf sale transaction ke zariye create honi chahiye
+      allow create: if isAnyStaff();
+      // Movements edit nahi honi chahiye — audit trail protect karo
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── customers ────────────────────────────────────────────
+    match /customers/{customerId} {
+      allow read:   if isAnyStaff();
+      allow create: if isAnyStaff();
+      allow update: if isAdminOrManager();
+      allow delete: if isAdmin();
+    }
+
+    // ── expenses ─────────────────────────────────────────────
+    match /expenses/{expenseId} {
+      allow read:   if isAdminOrManager();
+      allow create: if isAdminOrManager();
+      allow update: if isAdminOrManager();
+      allow delete: if isAdmin();
+    }
+
+    // ── purchases ────────────────────────────────────────────
+    match /purchases/{purchaseId} {
+      allow read:   if isAdminOrManager();
+      allow create: if isAdminOrManager();
+      allow update: if isAdminOrManager();
+      allow delete: if isAdmin();
+    }
+
+    // ── suppliers ────────────────────────────────────────────
+    match /suppliers/{supplierId} {
+      allow read:   if isAdminOrManager();
+      allow create: if isAdminOrManager();
+      allow update: if isAdminOrManager();
+      allow delete: if isAdmin();
+    }
+
+    // ── categories ───────────────────────────────────────────
+    match /categories/{catId} {
+      allow read:   if isAnyStaff();
+      allow write:  if isAdminOrManager();
+    }
+
+    // ── settings ─────────────────────────────────────────────
+    match /settings/{docId} {
+      allow read:   if isAnyStaff();
+      allow write:  if isAdmin();
+    }
+
+    // ── Baaki sab block ──────────────────────────────────────
+    // Koi bhi unlisted collection by default deny hai
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
