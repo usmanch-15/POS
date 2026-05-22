@@ -5,26 +5,26 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// FIX: returnIn case add kiya — sale_service.dart mein refund ke
+//      liye yeh type use hota hai. Pehle sirf 'returned' tha.
 enum StockMovementType { stockIn, stockOut, adjustment, saleDeduction, returned, returnIn }
 
 extension StockMovementTypeExt on StockMovementType {
-  String get label {
-    if (this case StockMovementType.stockIn) {
-       return 'Stock In';
-    } else if (this case StockMovementType.stockOut) {
-      return 'Stock Out';
-    } else if (this case StockMovementType.adjustment) {
-          return 'Adjustment';
-    } else if (this case StockMovementType.saleDeduction) {
-       return 'Sale';
-    } else if (this case StockMovementType.returned) {
-      return 'Returned';
-    }
-  }
+  // FIX: if-case syntax hata ke proper switch expression use kiya.
+  //      Saare 6 cases cover hain — ab null return nahi hoga.
+  String get label => switch (this) {
+    StockMovementType.stockIn       => 'Stock In',
+    StockMovementType.stockOut      => 'Stock Out',
+    StockMovementType.adjustment    => 'Adjustment',
+    StockMovementType.saleDeduction => 'Sale',
+    StockMovementType.returned      => 'Returned',
+    StockMovementType.returnIn      => 'Return In',   // ← FIX: missing case
+  };
 
   bool get isPositive =>
-      this == StockMovementType.stockIn ||
-      this == StockMovementType.returned;
+      this == StockMovementType.stockIn   ||
+          this == StockMovementType.returned  ||
+          this == StockMovementType.returnIn; // ← FIX: return in bhi positive hai
 }
 
 class StockMovement {
@@ -60,7 +60,7 @@ class StockMovement {
 
   static StockMovementType _typeFrom(String? s) {
     return StockMovementType.values.firstWhere(
-      (e) => e.name == s,
+          (e) => e.name == s,
       orElse: () => StockMovementType.adjustment,
     );
   }
