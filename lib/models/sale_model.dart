@@ -1,10 +1,4 @@
-// lib/models/sale_model.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Sale / Bill Model
-//  (replaces the minimal lib/models/sale.dart stub)
-// ─────────────────────────────────────────────────────────────
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ FIX: import add kiya
 import 'sale_item_model.dart';
 
 enum PaymentMethod { cash, card, split }
@@ -31,29 +25,31 @@ extension SaleStatusExt on SaleStatus {
 }
 
 class SaleModel {
-  final String            id;
-  final String            billNumber;
+  final String              id;
+  final String              billNumber;
+  final String              businessId;   // ✅ FIX: field declare kiya
   final List<SaleItemModel> items;
-  final double            subtotal;
-  final double            discountAmount;
-  final double            taxAmount;
-  final double            taxRate;
-  final double            total;
-  final PaymentMethod     paymentMethod;
-  final SaleStatus        status;
-  final String?           customerId;
-  final String?           customerName;
-  final String?           customerPhone;
-  final String?           cashierId;
-  final String?           cashierName;
-  final double            cashReceived;   // for cash payments
-  final double            changeGiven;
-  final String?           note;
-  final DateTime          createdAt;
+  final double              subtotal;
+  final double              discountAmount;
+  final double              taxAmount;
+  final double              taxRate;
+  final double              total;
+  final PaymentMethod       paymentMethod;
+  final SaleStatus          status;
+  final String?             customerId;
+  final String?             customerName;
+  final String?             customerPhone;
+  final String?             cashierId;
+  final String?             cashierName;
+  final double              cashReceived;
+  final double              changeGiven;
+  final String?             note;
+  final DateTime            createdAt;
 
   const SaleModel({
     required this.id,
     required this.billNumber,
+    this.businessId     = '',             // ✅ FIX: constructor mein add kiya
     required this.items,
     required this.subtotal,
     this.discountAmount = 0,
@@ -99,6 +95,7 @@ class SaleModel {
     return SaleModel(
       id:             docId,
       billNumber:     data['billNumber']    ?? '',
+      businessId:     data['businessId']    ?? '', // ✅ FIX: fromFirestore mein
       items:          (data['items'] as List<dynamic>? ?? [])
           .map((i) => SaleItemModel.fromJson(Map<String, dynamic>.from(i)))
           .toList(),
@@ -125,6 +122,7 @@ class SaleModel {
 
   Map<String, dynamic> toFirestore() => {
     'billNumber':     billNumber,
+    'businessId':     businessId,           // ✅ FIX: toFirestore mein
     'items':          items.map((i) => i.toJson()).toList(),
     'subtotal':       subtotal,
     'discountAmount': discountAmount,
@@ -145,29 +143,31 @@ class SaleModel {
   };
 
   SaleModel copyWith({
-    String? id,
-    String? billNumber,
+    String?             id,
+    String?             billNumber,
+    String?             businessId,         // ✅ FIX: optional (required nahi)
     List<SaleItemModel>? items,
-    double? subtotal,
-    double? discountAmount,
-    double? taxAmount,
-    double? taxRate,
-    double? total,
-    PaymentMethod? paymentMethod,
-    SaleStatus?    status,
-    String? customerId,
-    String? customerName,
-    String? customerPhone,
-    String? cashierId,
-    String? cashierName,
-    double? cashReceived,
-    double? changeGiven,
-    String? note,
-    DateTime? createdAt,
+    double?             subtotal,
+    double?             discountAmount,
+    double?             taxAmount,
+    double?             taxRate,
+    double?             total,
+    PaymentMethod?      paymentMethod,
+    SaleStatus?         status,
+    String?             customerId,
+    String?             customerName,
+    String?             customerPhone,
+    String?             cashierId,
+    String?             cashierName,
+    double?             cashReceived,
+    double?             changeGiven,
+    String?             note,
+    DateTime?           createdAt,
   }) =>
       SaleModel(
         id:             id             ?? this.id,
         billNumber:     billNumber     ?? this.billNumber,
+        businessId:     businessId     ?? this.businessId, // ✅ FIX: use kiya
         items:          items          ?? this.items,
         subtotal:       subtotal       ?? this.subtotal,
         discountAmount: discountAmount ?? this.discountAmount,

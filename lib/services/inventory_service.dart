@@ -1,16 +1,12 @@
-// lib/services/inventory_service.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Inventory / Stock Management Service
-// ─────────────────────────────────────────────────────────────
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
 import '../models/stock_model.dart';
+import '../services/product_service.dart'; // ✅ FIX: import add kiya
 
 class InventoryService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  CollectionReference get _prods    => _db.collection('products');
+  CollectionReference get _prods     => _db.collection('products');
   CollectionReference get _movements => _db.collection('stock_movements');
 
   // ── Stream all stock movements ─────────────────────────────
@@ -20,9 +16,9 @@ class InventoryService {
         .limit(limit)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => StockMovement.fromFirestore(
-                  d.data() as Map<String, dynamic>, d.id))
-            .toList());
+        .map((d) => StockMovement.fromFirestore(
+        d.data() as Map<String, dynamic>, d.id))
+        .toList());
   }
 
   // ── Movements for one product ──────────────────────────────
@@ -32,9 +28,9 @@ class InventoryService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => StockMovement.fromFirestore(
-                  d.data() as Map<String, dynamic>, d.id))
-            .toList());
+        .map((d) => StockMovement.fromFirestore(
+        d.data() as Map<String, dynamic>, d.id))
+        .toList());
   }
 
   // ── Low stock products stream ──────────────────────────────
@@ -43,31 +39,29 @@ class InventoryService {
         .where('isActive', isEqualTo: true)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => ProductModel.fromFirestore(
-                  d.data() as Map<String, dynamic>, d.id))
-            .where((p) => p.isLowStock || p.isOutOfStock)
-            .toList());
+        .map((d) => ProductModel.fromFirestore(
+        d.data() as Map<String, dynamic>, d.id))
+        .where((p) => p.isLowStock || p.isOutOfStock)
+        .toList());
   }
 
   // ── Adjust stock (manual: add or remove) ──────────────────
   Future<void> adjustStock({
-    required ProductModel product,
-    required int          newQuantity,
-    required String       reason,
-    required String       addedBy,
+    required ProductModel      product,
+    required int               newQuantity,
+    required String            reason,
+    required String            addedBy,
     required StockMovementType type,
   }) async {
     final diff = newQuantity - product.quantity;
     if (diff == 0) return;
 
     await _db.runTransaction((txn) async {
-      // Update product quantity
       txn.update(_prods.doc(product.id), {
         'quantity':  newQuantity,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Write movement record
       final movRef = _movements.doc();
       final mov = StockMovement(
         id:            movRef.id,
@@ -80,6 +74,7 @@ class InventoryService {
         reason:        reason,
         addedBy:       addedBy,
         createdAt:     DateTime.now(),
+        businessId:    ProductService.cachedBusinessId, // ✅ FIX: line 72
       );
       txn.set(movRef, mov.toFirestore());
     });
@@ -100,6 +95,7 @@ class InventoryService {
         'quantity':  newQty,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
       final movRef = _movements.doc();
       final mov = StockMovement(
         id:            movRef.id,
@@ -112,6 +108,7 @@ class InventoryService {
         addedBy:       addedBy,
         referenceId:   referenceId,
         createdAt:     DateTime.now(),
+        businessId:    ProductService.cachedBusinessId, // ✅ FIX: line 104
       );
       txn.set(movRef, mov.toFirestore());
     });
@@ -122,15 +119,16 @@ class InventoryService {
     final snap = await _prods.where('isActive', isEqualTo: true).get();
     final products = snap.docs
         .map((d) => ProductModel.fromFirestore(
-              d.data() as Map<String, dynamic>, d.id))
+        d.data() as Map<String, dynamic>, d.id))
         .toList();
 
     return StockSummary(
-      totalProducts:    products.length,
-      inStockCount:     products.where((p) => p.stockStatus == StockStatus.inStock).length,
-      lowStockCount:    products.where((p) => p.isLowStock).length,
-      outOfStockCount:  products.where((p) => p.isOutOfStock).length,
-      totalValue:       products.fold(0.0, (s, p) => s + p.inventoryValue),
+      totalProducts:   products.length,
+      inStockCount:    products
+          .where((p) => p.stockStatus == StockStatus.inStock).length,
+      lowStockCount:   products.where((p) => p.isLowStock).length,
+      outOfStockCount: products.where((p) => p.isOutOfStock).length,
+      totalValue:      products.fold(0.0, (s, p) => s + p.inventoryValue),
     );
   }
 }

@@ -35,6 +35,23 @@ dependencies:
   # ── Firebase Storage ──────────────────────────────────────
   firebase_storage: ^13.4.1
 
+  # ── Part 6: Offline detection ─────────────────────────────
+  connectivity_plus: ^6.0.0
+
+  # ── Part 7: App version from pubspec ──────────────────────
+  package_info_plus: ^8.0.0
+
+  # ── Part 4: PDF receipt generation ───────────────────────
+  pdf: ^3.11.0
+
+  # ── Part 4: Print via system dialog ──────────────────────
+  printing: ^5.12.0
+
+  # ── Part 4: Share receipt — firebase_storage mime ^2.0.0 ─
+  # share_plus ^9.0.0 mime ^1.0.4 se conflict karta tha
+  # flutter ne khud suggest kiya: ^12.0.2 use karo
+  share_plus: ^12.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

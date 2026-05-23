@@ -1,8 +1,3 @@
-// lib/models/expense_model.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Expense Model
-// ─────────────────────────────────────────────────────────────
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ExpenseCategory {
@@ -51,7 +46,7 @@ class ExpenseModel {
   final ExpenseCategory category;
   final String?         description;
   final String?         paidTo;
-  final String?         addedBy;
+  final String?         addedBy;   // ✅ createdBy ki jagah addedBy use hota hai
   final DateTime        date;
   final DateTime        createdAt;
 
@@ -64,12 +59,12 @@ class ExpenseModel {
     this.paidTo,
     this.addedBy,
     required this.date,
-    required this.createdAt,
+    required this.createdAt, // ✅ FIX: createdBy parameter hataya
   });
 
   static ExpenseCategory _categoryFrom(String? s) {
     return ExpenseCategory.values.firstWhere(
-      (e) => e.name == s,
+          (e) => e.name == s,
       orElse: () => ExpenseCategory.other,
     );
   }
@@ -77,8 +72,8 @@ class ExpenseModel {
   factory ExpenseModel.fromFirestore(Map<String, dynamic> data, String docId) {
     return ExpenseModel(
       id:          docId,
-      title:       data['title']       ?? '',
-      amount:      (data['amount']     ?? 0).toDouble(),
+      title:       data['title']   ?? '',
+      amount:      (data['amount'] ?? 0).toDouble(),
       category:    _categoryFrom(data['category']),
       description: data['description'],
       paidTo:      data['paidTo'],
@@ -89,6 +84,7 @@ class ExpenseModel {
       createdAt:   data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      // ✅ FIX: createdBy nahi diya — field exist nahi karti
     );
   }
 
@@ -124,6 +120,7 @@ class ExpenseModel {
         addedBy:     addedBy     ?? this.addedBy,
         date:        date        ?? this.date,
         createdAt:   createdAt   ?? this.createdAt,
+        // ✅ FIX: createdBy copyWith mein bhi nahi
       );
 
   @override

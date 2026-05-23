@@ -1,7 +1,17 @@
 // lib/providers/auth_provider.dart
 // ─────────────────────────────────────────────────────────────
-//  StockPro — Auth Provider (ChangeNotifier)
-//  FIX: registerAdmin() method add kiya signup screen ke liye
+//  PROJECT PATH:  lib/providers/auth_provider.dart
+//
+//  PART 1 — FIXES:
+//   FIX-1B: registerAdmin() invite-only kiya
+//           Firestore mein invites/{email} document check hota hai.
+//           Agar invite nahi mila — registration block ho jati hai.
+//           Successful registration ke baad invite delete hota hai.
+//
+//   FIX-1A: businessId custom claim set hoti hai login pe
+//           (Note: Custom claim Firebase Admin SDK se server side
+//            set hoti hai — yahan hum login ke baad reload karte hain
+//            taake claim reflect ho)
 // ─────────────────────────────────────────────────────────────
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -42,6 +52,12 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     try {
+      // FIX-1A: Token force refresh karo taake businessId claim mile
+      // Firebase Admin SDK server pe claim set karta hai login ke baad.
+      // getIdToken(true) force refresh karta hai — nahi karo to purani
+      // claim aati hai jo businessId ke bina hoti hai.
+      await firebaseUser.getIdToken(true);
+
       _user   = await _service.getUserModel(firebaseUser.uid);
       _status = _user != null
           ? AuthStatus.authenticated
@@ -105,10 +121,27 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── Register Admin — signup screen ke liye ─────────────────
-  // Naya business owner pehli baar account banata hai.
-  // UserModel mein businessName field nahi hai isliye
-  // businessName sirf settings document mein save hota hai.
+  // ── Register Admin — FIX-1B: Invite-Only ──────────────────
+  //
+  //  PEHLE:
+  //    Koi bhi email/password de ke admin ban sakta tha.
+  //    Koi check nahi tha.
+  //
+  //  AB:
+  //    Step 1 — Firestore mein invites/{email} document check karo.
+  //             Agar nahi mila — registration block.
+  //    Step 2 — Firebase Auth mein user banao.
+  //    Step 3 — Firestore mein UserModel + businessId save karo.
+  //    Step 4 — Settings document banao.
+  //    Step 5 — Invite delete karo (ek baar use hota hai).
+  //
+  //  Invite kaise banao? (Admin Firebase Console se kare ya apna
+  //  admin panel banao):
+  //    firestore
+  //      .collection('invites')
+  //      .doc('newuser@example.com')
+  //      .set({ 'createdBy': adminUid, 'createdAt': FieldValue.serverTimestamp() })
+  //
   Future<bool> registerAdmin({
     required String name,
     required String email,
@@ -117,42 +150,104 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     _error = null;
+
+    final db           = FirebaseFirestore.instance;
+    final normalEmail  = email.trim().toLowerCase();
+
     try {
-      // 1. Firebase Auth mein user banao
+      // ── Step 1: Invite check ───────────────────────────────
+      final inviteDoc = await db
+          .collection('invites')
+          .doc(normalEmail)
+          .get();
+
+      if (!inviteDoc.exists) {
+        _error  = 'Aapke paas valid invite nahi hai. Admin se rabta karein.';
+        _status = AuthStatus.unauthenticated;
+        _setLoading(false);
+        return false;
+      }
+
+      // ── Step 2: Firebase Auth mein user banao ─────────────
       final cred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email:    email.trim(),
+        email:    normalEmail,
         password: password,
       );
+      final uid = cred.user!.uid;
 
-      // 2. Firestore mein admin UserModel save karo
+      // ── Step 3: businessId generate karo ──────────────────
+      // Har business ki unique ID — sab documents mein yeh field
+      // hogi taake multi-tenant isolation kaam kare.
+      // Simple approach: business ka apna Firestore doc ID use karo.
+      final businessRef = db.collection('businesses').doc();
+      final businessId  = businessRef.id;
+
+      // Firestore mein admin UserModel save karo
       final newUser = UserModel(
-        id:        cred.user!.uid,
+        id:        uid,
         name:      name.trim(),
-        email:     email.trim(),
+        email:     normalEmail,
         role:      UserRole.admin,
         createdAt: DateTime.now(),
       );
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(newUser.id)
-          .set(newUser.toFirestore());
+      final batch = db.batch();
 
-      // 3. Business settings document save karo
-      await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('business')
-          .set({
+      // User document
+      batch.set(
+        db.collection('users').doc(uid),
+        {
+          ...newUser.toFirestore(),
+          'businessId': businessId,   // FIX-1A: businessId har user mein
+        },
+      );
+
+      // Business document
+      batch.set(businessRef, {
         'businessName': businessName.trim(),
-        'ownerId':      cred.user!.uid,
+        'ownerId':      uid,
         'createdAt':    FieldValue.serverTimestamp(),
       });
+
+      // Settings document
+      batch.set(
+        db.collection('settings').doc(businessId),
+        {
+          'businessName': businessName.trim(),
+          'ownerId':      uid,
+          'businessId':   businessId,
+          'createdAt':    FieldValue.serverTimestamp(),
+        },
+      );
+
+      // ── Step 5: Invite delete karo ────────────────────────
+      batch.delete(db.collection('invites').doc(normalEmail));
+
+      await batch.commit();
+
+      // ── NOTE: Custom Claim server se set hogi ─────────────
+      // Apne backend (Cloud Function) mein yeh likho:
+      //
+      //   exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
+      //     const userDoc = await admin.firestore()
+      //       .collection('users').doc(user.uid).get();
+      //     if (userDoc.exists) {
+      //       await admin.auth().setCustomUserClaims(user.uid, {
+      //         businessId: userDoc.data().businessId,
+      //         role: userDoc.data().role,
+      //       });
+      //     }
+      //   });
+      //
+      // Yeh Cloud Function automatically naye user ke liye
+      // businessId claim set kar degi jab user doc create hoga.
 
       _user   = newUser;
       _status = AuthStatus.authenticated;
       _setLoading(false);
       return true;
+
     } on FirebaseAuthException catch (e) {
       _error  = AuthService.errorMessage(e.code);
       _status = AuthStatus.unauthenticated;

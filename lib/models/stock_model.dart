@@ -1,30 +1,28 @@
-// lib/models/stock_model.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Stock Adjustment / Movement Model
-// ─────────────────────────────────────────────────────────────
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// FIX: returnIn case add kiya — sale_service.dart mein refund ke
-//      liye yeh type use hota hai. Pehle sirf 'returned' tha.
-enum StockMovementType { stockIn, stockOut, adjustment, saleDeduction, returned, returnIn }
+enum StockMovementType {
+  stockIn,
+  stockOut,
+  adjustment,
+  saleDeduction,
+  returned,
+  returnIn,
+}
 
 extension StockMovementTypeExt on StockMovementType {
-  // FIX: if-case syntax hata ke proper switch expression use kiya.
-  //      Saare 6 cases cover hain — ab null return nahi hoga.
   String get label => switch (this) {
     StockMovementType.stockIn       => 'Stock In',
     StockMovementType.stockOut      => 'Stock Out',
     StockMovementType.adjustment    => 'Adjustment',
     StockMovementType.saleDeduction => 'Sale',
     StockMovementType.returned      => 'Returned',
-    StockMovementType.returnIn      => 'Return In',   // ← FIX: missing case
+    StockMovementType.returnIn      => 'Return In',
   };
 
   bool get isPositive =>
-      this == StockMovementType.stockIn   ||
-          this == StockMovementType.returned  ||
-          this == StockMovementType.returnIn; // ← FIX: return in bhi positive hai
+      this == StockMovementType.stockIn ||
+          this == StockMovementType.returned ||
+          this == StockMovementType.returnIn;
 }
 
 class StockMovement {
@@ -32,13 +30,14 @@ class StockMovement {
   final String            productId;
   final String            productName;
   final StockMovementType type;
-  final int               quantity;        // always positive
+  final int               quantity;
   final int               previousStock;
   final int               newStock;
   final String?           reason;
   final String?           addedBy;
-  final String?           referenceId;     // saleId or purchaseId
+  final String?           referenceId;
   final DateTime          createdAt;
+  final String            businessId; // ✅ FIX: field declare kiya
 
   const StockMovement({
     required this.id,
@@ -52,11 +51,11 @@ class StockMovement {
     this.addedBy,
     this.referenceId,
     required this.createdAt,
+    required this.businessId, // ✅ FIX: this. add kiya
   });
 
   // Signed quantity for display: +10 or -5
-  int get signedQuantity =>
-      type.isPositive ? quantity : -quantity;
+  int get signedQuantity => type.isPositive ? quantity : -quantity;
 
   static StockMovementType _typeFrom(String? s) {
     return StockMovementType.values.firstWhere(
@@ -80,6 +79,7 @@ class StockMovement {
       createdAt:     data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      businessId:    data['businessId'] ?? '', // ✅ FIX: fromFirestore mein add kiya
     );
   }
 
@@ -94,6 +94,7 @@ class StockMovement {
     'addedBy':       addedBy,
     'referenceId':   referenceId,
     'createdAt':     FieldValue.serverTimestamp(),
+    'businessId':    businessId, // ✅ FIX: toFirestore mein add kiya
   };
 
   @override
@@ -106,10 +107,10 @@ class StockMovement {
 
 /// Summary model used by inventory screen
 class StockSummary {
-  final int totalProducts;
-  final int inStockCount;
-  final int lowStockCount;
-  final int outOfStockCount;
+  final int    totalProducts;
+  final int    inStockCount;
+  final int    lowStockCount;
+  final int    outOfStockCount;
   final double totalValue;
 
   const StockSummary({

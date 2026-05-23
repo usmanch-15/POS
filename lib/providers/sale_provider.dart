@@ -1,8 +1,3 @@
-// lib/providers/sale_provider.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Sale History Provider (ChangeNotifier)
-// ─────────────────────────────────────────────────────────────
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/sale_service.dart';
@@ -11,17 +6,18 @@ import '../models/sale_model.dart';
 class SaleProvider extends ChangeNotifier {
   final SaleService _service = SaleService();
 
-  List<SaleModel> _sales      = [];
-  List<SaleModel> _todaySales = [];
-  bool            _isLoading  = false;
-  String?         _error;
+  List<SaleModel>     _sales      = [];
+  List<SaleModel>     _todaySales = [];
+  bool                _isLoading  = false;
+  String?             _error;
   StreamSubscription? _todaySub;
+  StreamSubscription? _salesSub;   // ✅ main stream track karne ke liye
 
   // ── Getters ────────────────────────────────────────────────
-  List<SaleModel> get sales       => _sales;
-  List<SaleModel> get todaySales  => _todaySales;
-  bool            get isLoading   => _isLoading;
-  String?         get error       => _error;
+  List<SaleModel> get sales      => _sales;
+  List<SaleModel> get todaySales => _todaySales;
+  bool            get isLoading  => _isLoading;
+  String?         get error      => _error;
 
   // ── Today's stats ──────────────────────────────────────────
   double get todayRevenue =>
@@ -37,8 +33,9 @@ class SaleProvider extends ChangeNotifier {
 
   // ── Init today's live stream ───────────────────────────────
   void initToday() {
+    _todaySub?.cancel();
     _todaySub = _service.streamTodaySales().listen(
-      (list) {
+          (list) {
         _todaySales = list;
         notifyListeners();
       },
@@ -49,24 +46,48 @@ class SaleProvider extends ChangeNotifier {
     );
   }
 
-  // ── Load all sales ─────────────────────────────────────────
+  // ── Load all sales (live stream) ───────────────────────────
   Future<void> loadSales() async {
     _setLoading(true);
-    try {
-      // Use stream for live updates
-      _service.streamSales().listen((list) {
+    _salesSub?.cancel();
+    _salesSub = _service.streamSales().listen(
+          (list) {
         _sales     = list;
         _isLoading = false;
         _error     = null;
         notifyListeners();
-      });
-    } catch (e) {
-      _error = e.toString();
-      _setLoading(false);
-    }
+      },
+      onError: (e) {
+        _error = e.toString();
+        _setLoading(false);
+      },
+    );
   }
 
-  // ── Load by date range ─────────────────────────────────────
+  // ✅ FIX: loadInRange — sales_screen.dart date filter ke liye
+  // Stream cancel karke one-time fetch karta hai
+  Future<void> loadInRange(DateTime from, DateTime to) async {
+    _salesSub?.cancel(); // live stream rok do
+    _salesSub = null;
+    _setLoading(true);
+    try {
+      final list = await _service.getSalesInRange(from, to);
+      _sales = list;
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    }
+    _setLoading(false);
+  }
+
+  // ✅ FIX: resetToStream — filter clear hone pe live stream wapas
+  void resetToStream() {
+    _sales = [];
+    notifyListeners();
+    loadSales(); // live stream dobara shuru karo
+  }
+
+  // ── Load by date range (return karta hai — reports ke liye) ─
   Future<List<SaleModel>> loadByRange(DateTime from, DateTime to) async {
     _setLoading(true);
     try {
@@ -106,6 +127,7 @@ class SaleProvider extends ChangeNotifier {
   @override
   void dispose() {
     _todaySub?.cancel();
+    _salesSub?.cancel();
     super.dispose();
   }
 }

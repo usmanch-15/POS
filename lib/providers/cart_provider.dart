@@ -1,13 +1,3 @@
-// lib/providers/cart_provider.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Cart / POS Provider (ChangeNotifier)
-//  FIX: increment() stock check nahi karta tha.
-//       addProduct() mein stock check tha lekin increment() mein
-//       nahi tha — user available stock se zyada add kar sakta tha.
-//       Fix: ProductProvider se current product ki quantity check
-//       karo increment() ke andar.
-// ─────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../models/sale_item_model.dart';
@@ -18,22 +8,17 @@ import '../services/local_storage_service.dart';
 class CartProvider extends ChangeNotifier {
   final SaleService _service = SaleService();
 
-  final List<SaleItemModel> _items  = [];
+  final List<SaleItemModel> _items          = [];
+  final Map<String, int>    _availableStock = {};
 
-  // FIX: Stock map — productId → available stock
-  // Jab product cart mein add hota hai, us waqt ki available qty yahan
-  // store hoti hai taake increment() check kar sake.
-  final Map<String, int> _availableStock = {};
-
-  String?  _customerId;
-  String?  _customerName;
-  String?  _customerPhone;
-  double   _discountAmount = 0;
-  bool     _isLoading      = false;
-  String?  _error;
+  String?    _customerId;
+  String?    _customerName;
+  String?    _customerPhone;
+  double     _discountAmount = 0;
+  bool       _isLoading      = false;
+  String?    _error;
   SaleModel? _lastSale;
 
-  // ── Getters ────────────────────────────────────────────────
   List<SaleItemModel> get items          => List.unmodifiable(_items);
   bool                get isEmpty        => _items.isEmpty;
   bool                get isLoading      => _isLoading;
@@ -44,41 +29,27 @@ class CartProvider extends ChangeNotifier {
   double              get discountAmount => _discountAmount;
   int                 get itemCount      => _items.fold(0, (s, i) => s + i.quantity);
 
-  // Kisi item ka available stock kitna hai
-  int availableStockFor(String productId) =>
-      _availableStock[productId] ?? 0;
-
-  // Kya aur add ho sakta hai?
+  int  availableStockFor(String productId) => _availableStock[productId] ?? 0;
   bool canIncrement(String productId) {
     final idx = _items.indexWhere((i) => i.productId == productId);
     if (idx < 0) return false;
-    final inCart    = _items[idx].quantity;
-    final available = _availableStock[productId] ?? 0;
-    return inCart < available;
+    return _items[idx].quantity < (_availableStock[productId] ?? 0);
   }
 
-  // ── Computed totals ────────────────────────────────────────
-  double get subtotal  => _items.fold(0.0, (s, i) => s + i.total);
-  double get taxRate   => LocalStorageService.gstRate;
-  double get taxAmount => subtotal * (taxRate / 100);
+  double get subtotal    => _items.fold(0.0, (s, i) => s + i.total);
+  double get taxRate     => LocalStorageService.gstRate;
+  double get taxAmount   => subtotal * (taxRate / 100);
   double get grandTotal  => subtotal - _discountAmount + taxAmount;
-  double get totalProfit =>
-      _items.fold(0.0, (s, i) => s + i.profit) - _discountAmount;
+  double get totalProfit => _items.fold(0.0, (s, i) => s + i.profit) - _discountAmount;
+  double changeFor(double cash) => (cash - grandTotal).clamp(0, double.infinity);
 
-  double changeFor(double cashReceived) =>
-      (cashReceived - grandTotal).clamp(0, double.infinity);
-
-  // ── Add product to cart ────────────────────────────────────
   void addProduct(ProductModel product, {int quantity = 1}) {
     if (product.isOutOfStock) return;
-
-    // Available stock yaad rakh
     _availableStock[product.id] = product.quantity;
-
     final idx = _items.indexWhere((i) => i.productId == product.id);
     if (idx >= 0) {
       final newQty = _items[idx].quantity + quantity;
-      if (newQty > product.quantity) return; // stock limit check
+      if (newQty > product.quantity) return;
       _items[idx] = _items[idx].copyWith(quantity: newQty);
     } else {
       _items.add(SaleItemModel(
@@ -94,48 +65,29 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Remove one item ────────────────────────────────────────
   void removeItem(String productId) {
     _items.removeWhere((i) => i.productId == productId);
-    _availableStock.remove(productId); // cleanup
+    _availableStock.remove(productId);
     notifyListeners();
   }
 
-  // ── Update quantity directly ───────────────────────────────
   void updateQuantity(String productId, int qty) {
-    if (qty <= 0) {
-      removeItem(productId);
-      return;
-    }
+    if (qty <= 0) { removeItem(productId); return; }
     final idx = _items.indexWhere((i) => i.productId == productId);
     if (idx < 0) return;
-
-    // Stock limit check
-    final available = _availableStock[productId] ?? qty;
-    final clamped   = qty.clamp(1, available);
-
+    final clamped = qty.clamp(1, _availableStock[productId] ?? qty);
     _items[idx] = _items[idx].copyWith(quantity: clamped);
     notifyListeners();
   }
 
-  // ── Increment ──────────────────────────────────────────────
-  // FIX: Pehle seedha quantity+1 kar deta tha, stock check nahi tha.
-  //      Ab _availableStock map se limit check hoti hai.
   void increment(String productId) {
     final idx = _items.indexWhere((i) => i.productId == productId);
     if (idx < 0) return;
-
-    final currentQty = _items[idx].quantity;
-    final available  = _availableStock[productId] ?? 0;
-
-    // FIX: stock limit check — zyada nahi ho sakta
-    if (currentQty >= available) return;
-
-    _items[idx] = _items[idx].copyWith(quantity: currentQty + 1);
+    if (_items[idx].quantity >= (_availableStock[productId] ?? 0)) return;
+    _items[idx] = _items[idx].copyWith(quantity: _items[idx].quantity + 1);
     notifyListeners();
   }
 
-  // ── Decrement ──────────────────────────────────────────────
   void decrement(String productId) {
     final idx = _items.indexWhere((i) => i.productId == productId);
     if (idx < 0) return;
@@ -147,12 +99,7 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  // ── Set customer ───────────────────────────────────────────
-  void setCustomer({
-    required String id,
-    required String name,
-    String? phone,
-  }) {
+  void setCustomer({required String id, required String name, String? phone}) {
     _customerId    = id;
     _customerName  = name;
     _customerPhone = phone;
@@ -160,73 +107,80 @@ class CartProvider extends ChangeNotifier {
   }
 
   void clearCustomer() {
-    _customerId    = null;
-    _customerName  = null;
-    _customerPhone = null;
+    _customerId = _customerName = _customerPhone = null;
     notifyListeners();
   }
 
-  // ── Set discount ───────────────────────────────────────────
   void setDiscount(double amount) {
     _discountAmount = amount.clamp(0, subtotal);
     notifyListeners();
   }
 
-  // ── Clear cart ─────────────────────────────────────────────
   void clearCart() {
     _items.clear();
-    _availableStock.clear(); // FIX: stock map bhi clear karo
+    _availableStock.clear();
     _discountAmount = 0;
-    _customerId     = null;
-    _customerName   = null;
-    _customerPhone  = null;
-    _error          = null;
-    _lastSale       = null;
+    _customerId = _customerName = _customerPhone = null;
+    _error      = null;
+    _lastSale   = null;
     notifyListeners();
   }
 
-  // ── Checkout ───────────────────────────────────────────────
+  // FIX-6C: Safe checkout — cart clear sirf success pe hoti hai
   Future<SaleModel?> checkout({
     required PaymentMethod paymentMethod,
-    double cashReceived = 0,
+    double  cashReceived = 0,
     String? cashierId,
     String? cashierName,
     String? note,
   }) async {
     if (_items.isEmpty) return null;
     _setLoading(true);
+    _error = null;
+
+    // FIX-6C: Sale object pehle banao — cart items ki snapshot
+    // Agar baad mein kuch fail ho to cart same rahegi
+    final saleSnapshot = SaleModel(
+      id:             '',
+      billNumber:     '',
+      items:          List.from(_items),   // deep copy
+      subtotal:       subtotal,
+      discountAmount: _discountAmount,
+      taxAmount:      taxAmount,
+      taxRate:        taxRate,
+      total:          grandTotal,
+      paymentMethod:  paymentMethod,
+      customerId:     _customerId,
+      customerName:   _customerName,
+      customerPhone:  _customerPhone,
+      cashierId:      cashierId,
+      cashierName:    cashierName,
+      cashReceived:   cashReceived,
+      changeGiven:    changeFor(cashReceived),
+      note:           note,
+      createdAt:      DateTime.now(),
+    );
 
     try {
-      final sale = SaleModel(
-        id:             '',
-        billNumber:     '',
-        items:          List.from(_items),
-        subtotal:       subtotal,
-        discountAmount: _discountAmount,
-        taxAmount:      taxAmount,
-        taxRate:        taxRate,
-        total:          grandTotal,
-        paymentMethod:  paymentMethod,
-        customerId:     _customerId,
-        customerName:   _customerName,
-        customerPhone:  _customerPhone,
-        cashierId:      cashierId,
-        cashierName:    cashierName,
-        cashReceived:   cashReceived,
-        changeGiven:    changeFor(cashReceived),
-        note:           note,
-        createdAt:      DateTime.now(),
-      );
-
-      _lastSale = await _service.completeSale(sale);
+      // FIX-6C: Firestore transaction — agar yeh fail ho,
+      // clearCart() call nahi hogi, cart intact rahegi
+      _lastSale = await _service.completeSale(saleSnapshot);
+      // Sirf success pe cart clear karo
       clearCart();
       _setLoading(false);
       return _lastSale;
     } catch (e) {
+      // FIX-6C: Error set karo lekin cart NAHI clear karo
+      // User dobara try kar sakta hai ya items adjust kar sakta hai
       _error = e.toString();
       _setLoading(false);
       return null;
     }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 
   void _setLoading(bool v) {
@@ -234,3 +188,4 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+ 

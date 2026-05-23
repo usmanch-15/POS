@@ -5,32 +5,36 @@ import '../constants/app_colors.dart';
 class AppTheme {
   AppTheme._();
 
+  // ── Light Theme ─────────────────────────────────────────────
   static ThemeData get lightTheme => ThemeData(
-    brightness:       Brightness.light,
-    primaryColor:     AppColors.primary,
+    useMaterial3:           true,
+    brightness:             Brightness.light,
+    colorSchemeSeed:        AppColors.primary,
     scaffoldBackgroundColor: AppColors.lightScaffold,
-    fontFamily:       'Poppins',
-    colorScheme:      const ColorScheme.light(
-      primary:        AppColors.primary,
-      secondary:      AppColors.primaryLight,
-      error:          AppColors.danger,
-    ),
+
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: AppColors.lightText1,
+      backgroundColor: AppColors.lightCard,
+      foregroundColor: AppColors.lightText1,   // FIX: textDark → lightText1
       elevation:       0,
-    ),
-    cardTheme: CardThemeData(
-      color:           Colors.white,
-      elevation:       0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.lightBorder),
+      centerTitle:     false,
+      titleTextStyle:  TextStyle(
+        fontSize:   18,
+        fontWeight: FontWeight.w600,
+        color:      AppColors.lightText1,      // FIX: textDark → lightText1
       ),
+      iconTheme: IconThemeData(color: AppColors.lightText1), // FIX
     ),
+
+    cardTheme: CardThemeData(
+      color:     AppColors.lightCard,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14)),
+    ),
+
     inputDecorationTheme: InputDecorationTheme(
-      filled:          true,
-      fillColor:       AppColors.lightSurface,
+      filled:    true,
+      fillColor: AppColors.lightSurface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide:   const BorderSide(color: AppColors.lightBorder),
@@ -43,51 +47,55 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide:   const BorderSide(color: AppColors.primary, width: 1.5),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide:   const BorderSide(color: AppColors.danger),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     ),
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        elevation:       0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+            borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
+    ),
+
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
     ),
   );
 
+  // ── Dark Theme ──────────────────────────────────────────────
   static ThemeData get darkTheme => ThemeData(
-    brightness:       Brightness.dark,
-    primaryColor:     AppColors.primary,
+    useMaterial3:           true,
+    brightness:             Brightness.dark,
+    colorSchemeSeed:        AppColors.primary,
     scaffoldBackgroundColor: AppColors.darkScaffold,
-    fontFamily:       'Poppins',
-    colorScheme:      const ColorScheme.dark(
-      primary:        AppColors.primary,
-      secondary:      AppColors.primaryLight,
-      error:          AppColors.danger,
-      surface:        AppColors.darkCard,
-    ),
+
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.darkCard,
-      foregroundColor: Colors.white,
+      foregroundColor: AppColors.darkText1,
       elevation:       0,
-    ),
-    cardTheme: CardThemeData(
-      color:           AppColors.darkCard,
-      elevation:       0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.darkBorder),
+      centerTitle:     false,
+      titleTextStyle:  TextStyle(
+        fontSize:   18,
+        fontWeight: FontWeight.w600,
+        color:      AppColors.darkText1,
       ),
+      iconTheme: IconThemeData(color: AppColors.darkText1),
     ),
+
+    cardTheme: CardThemeData(
+      color:     AppColors.darkCard,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14)),
+    ),
+
     inputDecorationTheme: InputDecorationTheme(
-      filled:          true,
-      fillColor:       AppColors.darkSurface,
+      filled:    true,
+      fillColor: AppColors.darkSurface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide:   const BorderSide(color: AppColors.darkBorder),
@@ -100,23 +108,22 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide:   const BorderSide(color: AppColors.primary, width: 1.5),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide:   const BorderSide(color: AppColors.danger),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      labelStyle:      const TextStyle(color: AppColors.darkText2),
-      hintStyle:       const TextStyle(color: AppColors.darkText3),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     ),
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        elevation:       0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+            borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
+    ),
+
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
     ),
   );
 }
