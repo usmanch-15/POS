@@ -1,11 +1,16 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/report_service.dart';
 import '../models/report_model.dart';
+import '../models/sale_model.dart';
+import '../services/product_service.dart';
 
 enum ReportPeriod { today, week, month, custom }
 
 class ReportProvider extends ChangeNotifier {
-  final ReportService _service = ReportService();
+  final ReportService      _service = ReportService();
+  final FirebaseFirestore  _db      = FirebaseFirestore.instance;
 
   DailySummary?        _dailySummary;
   MonthlySummary?      _monthlySummary;
@@ -14,12 +19,21 @@ class ReportProvider extends ChangeNotifier {
   List<CategorySales>  _categorySales = [];
   List<ChartDataPoint> _weeklyChart   = [];
 
+  // ✅ Live today stats — stream se aate hain
+  double _todayRevenue  = 0;
+  double _todayProfit   = 0;
+  int    _todayBills    = 0;
+
   ReportPeriod _period    = ReportPeriod.today;
   DateTime     _fromDate  = DateTime.now();
   DateTime     _toDate    = DateTime.now();
   bool         _isLoading = false;
   String?      _error;
 
+  // Stream subscription
+  StreamSubscription? _todayStreamSub;
+
+  // ── Getters ────────────────────────────────────────────────
   DailySummary?        get dailySummary   => _dailySummary;
   MonthlySummary?      get monthlySummary => _monthlySummary;
   ProfitLossSummary?   get profitLoss     => _profitLoss;
@@ -32,46 +46,113 @@ class ReportProvider extends ChangeNotifier {
   bool                 get isLoading      => _isLoading;
   String?              get error          => _error;
 
-  Future<void> loadDashboardData() => loadAll();
+  // ✅ Live stats getters
+  double get todayRevenue => _todayRevenue;
+  double get todayProfit  => _todayProfit;
+  int    get todayBills   => _todayBills;
 
-  Future<void> loadAll({DateTime? from, DateTime? to}) async {
-    _isLoading = true;
-    _error     = null;
-    notifyListeners();
+  // ── Init: today stream shuru karo ─────────────────────────
+  // MainLayout se call hota hai — ek baar call karo
+  // Phir automatically update hota rahega
+  void startTodayStream() {
+    _todayStreamSub?.cancel();
 
+    final now  = DateTime.now();
+    final from = DateTime(now.year, now.month, now.day);
+    final to   = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    _todayStreamSub = _db
+        .collection('sales')
+        .where('businessId',
+        isEqualTo: ProductService.cachedBusinessId)
+        .where('status',
+        isEqualTo: SaleStatus.completed.name)
+        .where('createdAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(from))
+        .where('createdAt',
+        isLessThanOrEqualTo: Timestamp.fromDate(to))
+        .snapshots()
+        .listen((snap) {
+      // ✅ Har nai sale pe auto-calculate
+      final sales = snap.docs
+          .map((d) => SaleModel.fromFirestore(
+          d.data() as Map<String, dynamic>, d.id))
+          .toList();
+
+      _todayRevenue = sales.fold(0.0, (s, sale) => s + sale.total);
+      _todayProfit  = sales.fold(0.0, (s, sale) => s + sale.totalProfit);
+      _todayBills   = sales.length;
+
+      // Daily summary bhi update karo
+      _dailySummary = DailySummary(
+        date:          now,
+        totalSales:    _todayRevenue,
+        totalCost:     sales.fold(0.0, (s, sale) => s + sale.totalCost),
+        totalProfit:   _todayProfit,
+        totalDiscount: sales.fold(0.0, (s, sale) => s + sale.discountAmount),
+        billCount:     _todayBills,
+        itemsSold:     sales.fold(0, (s, sale) => s + sale.totalItems),
+      );
+
+      notifyListeners(); // ✅ UI automatically update
+    }, onError: (e) {
+      _error = e.toString();
+      notifyListeners();
+    });
+  }
+
+  // ── loadDashboardData — weekly chart + monthly ─────────────
+  Future<void> loadDashboardData() async {
+    startTodayStream(); // stream shuru/restart karo
+    _loadOtherStats();  // baaki stats load karo
+  }
+
+  Future<void> _loadOtherStats() async {
     final now      = DateTime.now();
-    final fromDate = from ?? DateTime(now.year, now.month, 1);
-    final toDate   = to   ?? now;
+    final fromDate = DateTime(now.year, now.month, 1);
 
     try {
       final results = await Future.wait([
-        _service.getDailySummary(now),
         _service.getMonthlySummary(now.month, now.year),
         _service.getWeeklySalesChart(),
-        _service.getTopProducts(from: fromDate, to: toDate),  // named ✅
-        _service.getCategorySales(from: fromDate, to: toDate), // named ✅
-        _service.getProfitLoss(fromDate, toDate),              // ✅ FIX: positional
+        _service.getTopProducts(from: fromDate, to: now),
+        _service.getCategorySales(from: fromDate, to: now),
+        _service.getProfitLoss(fromDate, now),
       ]);
 
-      _dailySummary   = results[0] as DailySummary;
-      _monthlySummary = results[1] as MonthlySummary;
-      _weeklyChart    = results[2] as List<ChartDataPoint>;
-      _topProducts    = results[3] as List<TopProduct>;
-      _categorySales  = results[4] as List<CategorySales>;
-      _profitLoss     = results[5] as ProfitLossSummary;
+      _monthlySummary = results[0] as MonthlySummary;
+      _weeklyChart    = results[1] as List<ChartDataPoint>;
+      _topProducts    = results[2] as List<TopProduct>;
+      _categorySales  = results[3] as List<CategorySales>;
+      _profitLoss     = results[4] as ProfitLossSummary;
       _fromDate       = fromDate;
-      _toDate         = toDate;
+      _toDate         = now;
     } catch (e) {
       _error = e.toString();
     }
-
-    _isLoading = false;
     notifyListeners();
   }
 
   Future<void> loadForRange(DateTime from, DateTime to) async {
-    _period = ReportPeriod.custom;
-    await loadAll(from: from, to: to);
+    _period    = ReportPeriod.custom;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final results = await Future.wait([
+        _service.getTopProducts(from: from, to: to),
+        _service.getCategorySales(from: from, to: to),
+        _service.getProfitLoss(from, to),
+      ]);
+      _topProducts   = results[0] as List<TopProduct>;
+      _categorySales = results[1] as List<CategorySales>;
+      _profitLoss    = results[2] as ProfitLossSummary;
+      _fromDate      = from;
+      _toDate        = to;
+    } catch (e) {
+      _error = e.toString();
+    }
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> loadDailySummary({DateTime? date}) async {
@@ -108,7 +189,7 @@ class ReportProvider extends ChangeNotifier {
 
   Future<void> loadTopProducts(DateTime from, DateTime to) async {
     try {
-      _topProducts = await _service.getTopProducts(from: from, to: to); // named ✅
+      _topProducts = await _service.getTopProducts(from: from, to: to);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -118,8 +199,7 @@ class ReportProvider extends ChangeNotifier {
 
   Future<void> loadCategorySales(DateTime from, DateTime to) async {
     try {
-      _categorySales =
-      await _service.getCategorySales(from: from, to: to); // named ✅
+      _categorySales = await _service.getCategorySales(from: from, to: to);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -129,12 +209,17 @@ class ReportProvider extends ChangeNotifier {
 
   Future<void> loadProfitLoss(DateTime from, DateTime to) async {
     try {
-      _profitLoss =
-      await _service.getProfitLoss(from, to); // ✅ FIX: positional
+      _profitLoss = await _service.getProfitLoss(from, to);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _todayStreamSub?.cancel();
+    super.dispose();
   }
 }
