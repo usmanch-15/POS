@@ -11,7 +11,7 @@ class SaleProvider extends ChangeNotifier {
   bool                _isLoading  = false;
   String?             _error;
   StreamSubscription? _todaySub;
-  StreamSubscription? _salesSub;   // ✅ main stream track karne ke liye
+  StreamSubscription? _salesSub;
 
   // ── Getters ────────────────────────────────────────────────
   List<SaleModel> get sales      => _sales;
@@ -30,6 +30,17 @@ class SaleProvider extends ChangeNotifier {
 
   double get todayAvgBill =>
       todayBillCount > 0 ? todayRevenue / todayBillCount : 0;
+
+  // ✅ FIX: dashboard_screen ke liye aliases
+  double get todayTotal => todayRevenue;   // line 74 fix
+  int    get todayCount => todayBillCount; // line 78 fix
+
+  // ✅ FIX: recent 10 sales sorted by date (line 154, 168)
+  List<SaleModel> get recentSales =>
+      (List<SaleModel>.from(_todaySales.isNotEmpty ? _todaySales : _sales)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))
+          .take(10)
+          .toList();
 
   // ── Init today's live stream ───────────────────────────────
   void initToday() {
@@ -64,10 +75,9 @@ class SaleProvider extends ChangeNotifier {
     );
   }
 
-  // ✅ FIX: loadInRange — sales_screen.dart date filter ke liye
-  // Stream cancel karke one-time fetch karta hai
+  // ── loadInRange — sales_screen.dart date filter ke liye ────
   Future<void> loadInRange(DateTime from, DateTime to) async {
-    _salesSub?.cancel(); // live stream rok do
+    _salesSub?.cancel();
     _salesSub = null;
     _setLoading(true);
     try {
@@ -80,11 +90,11 @@ class SaleProvider extends ChangeNotifier {
     _setLoading(false);
   }
 
-  // ✅ FIX: resetToStream — filter clear hone pe live stream wapas
+  // ── resetToStream — filter clear hone pe live stream wapas ─
   void resetToStream() {
     _sales = [];
     notifyListeners();
-    loadSales(); // live stream dobara shuru karo
+    loadSales();
   }
 
   // ── Load by date range (return karta hai — reports ke liye) ─

@@ -1,7 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ FIX: import add kiya
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sale_item_model.dart';
 
-enum PaymentMethod { cash, card, split }
+// ✅ FIX: payment_dialog.dart lines 256, 269 — `upi` add kiya enum mein
+enum PaymentMethod { cash, card, upi, split }
 enum SaleStatus    { completed, refunded, partial }
 
 extension PaymentMethodExt on PaymentMethod {
@@ -9,6 +10,7 @@ extension PaymentMethodExt on PaymentMethod {
     switch (this) {
       case PaymentMethod.cash:  return 'Cash';
       case PaymentMethod.card:  return 'Card';
+      case PaymentMethod.upi:   return 'UPI';   // ✅ FIX
       case PaymentMethod.split: return 'Split';
     }
   }
@@ -27,7 +29,7 @@ extension SaleStatusExt on SaleStatus {
 class SaleModel {
   final String              id;
   final String              billNumber;
-  final String              businessId;   // ✅ FIX: field declare kiya
+  final String              businessId;
   final List<SaleItemModel> items;
   final double              subtotal;
   final double              discountAmount;
@@ -49,7 +51,7 @@ class SaleModel {
   const SaleModel({
     required this.id,
     required this.billNumber,
-    this.businessId     = '',             // ✅ FIX: constructor mein add kiya
+    this.businessId     = '',
     required this.items,
     required this.subtotal,
     this.discountAmount = 0,
@@ -78,6 +80,7 @@ class SaleModel {
   static PaymentMethod _paymentFrom(String? s) {
     switch (s) {
       case 'card':  return PaymentMethod.card;
+      case 'upi':   return PaymentMethod.upi;   // ✅ FIX
       case 'split': return PaymentMethod.split;
       default:      return PaymentMethod.cash;
     }
@@ -95,7 +98,7 @@ class SaleModel {
     return SaleModel(
       id:             docId,
       billNumber:     data['billNumber']    ?? '',
-      businessId:     data['businessId']    ?? '', // ✅ FIX: fromFirestore mein
+      businessId:     data['businessId']    ?? '',
       items:          (data['items'] as List<dynamic>? ?? [])
           .map((i) => SaleItemModel.fromJson(Map<String, dynamic>.from(i)))
           .toList(),
@@ -122,7 +125,7 @@ class SaleModel {
 
   Map<String, dynamic> toFirestore() => {
     'billNumber':     billNumber,
-    'businessId':     businessId,           // ✅ FIX: toFirestore mein
+    'businessId':     businessId,
     'items':          items.map((i) => i.toJson()).toList(),
     'subtotal':       subtotal,
     'discountAmount': discountAmount,
@@ -143,31 +146,31 @@ class SaleModel {
   };
 
   SaleModel copyWith({
-    String?             id,
-    String?             billNumber,
-    String?             businessId,         // ✅ FIX: optional (required nahi)
+    String?              id,
+    String?              billNumber,
+    String?              businessId,
     List<SaleItemModel>? items,
-    double?             subtotal,
-    double?             discountAmount,
-    double?             taxAmount,
-    double?             taxRate,
-    double?             total,
-    PaymentMethod?      paymentMethod,
-    SaleStatus?         status,
-    String?             customerId,
-    String?             customerName,
-    String?             customerPhone,
-    String?             cashierId,
-    String?             cashierName,
-    double?             cashReceived,
-    double?             changeGiven,
-    String?             note,
-    DateTime?           createdAt,
+    double?              subtotal,
+    double?              discountAmount,
+    double?              taxAmount,
+    double?              taxRate,
+    double?              total,
+    PaymentMethod?       paymentMethod,
+    SaleStatus?          status,
+    String?              customerId,
+    String?              customerName,
+    String?              customerPhone,
+    String?              cashierId,
+    String?              cashierName,
+    double?              cashReceived,
+    double?              changeGiven,
+    String?              note,
+    DateTime?            createdAt,
   }) =>
       SaleModel(
         id:             id             ?? this.id,
         billNumber:     billNumber     ?? this.billNumber,
-        businessId:     businessId     ?? this.businessId, // ✅ FIX: use kiya
+        businessId:     businessId     ?? this.businessId,
         items:          items          ?? this.items,
         subtotal:       subtotal       ?? this.subtotal,
         discountAmount: discountAmount ?? this.discountAmount,

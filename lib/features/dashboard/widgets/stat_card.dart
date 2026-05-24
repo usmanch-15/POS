@@ -1,15 +1,16 @@
 // lib/features/dashboard/widgets/stat_card.dart
+// StockPro — Premium Stat Card with gradient + glow
+
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 
 class StatCard extends StatelessWidget {
-  final String         label;
-  final double         value;
-  final IconData       icon;
+  final String label;
+  final double value;
+  final IconData icon;
   final LinearGradient gradient;
-  final String?        sub;
-  final bool           isCurrency;
+  final String? sub;
+  final bool isCurrency;
 
   const StatCard({
     super.key,
@@ -24,15 +25,15 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.first.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: gradient.colors.first.withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -45,41 +46,44 @@ class StatCard extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(label,
-                    style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                     overflow: TextOverflow.ellipsis),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: Colors.white, size: 16),
               ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isCurrency
-                    ? CurrencyFormatter.formatCompact(value)
-                    : value.toInt().toString(),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5),
-              ),
-              if (sub != null)
-                Text(sub!,
-                    style: const TextStyle(
-                        color: Colors.white60, fontSize: 10)),
-            ],
+          const Spacer(),
+          Text(
+            isCurrency
+                ? CurrencyFormatter.format(value)
+                : value.toInt().toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
           ),
+          if (sub != null) ...[
+            const SizedBox(height: 2),
+            Text(sub!,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                )),
+          ],
         ],
       ),
     );

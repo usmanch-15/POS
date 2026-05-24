@@ -19,7 +19,7 @@ class ReportProvider extends ChangeNotifier {
   List<CategorySales>  _categorySales = [];
   List<ChartDataPoint> _weeklyChart   = [];
 
-  // ✅ Live today stats — stream se aate hain
+  // Live today stats — stream se aate hain
   double _todayRevenue  = 0;
   double _todayProfit   = 0;
   int    _todayBills    = 0;
@@ -30,7 +30,6 @@ class ReportProvider extends ChangeNotifier {
   bool         _isLoading = false;
   String?      _error;
 
-  // Stream subscription
   StreamSubscription? _todayStreamSub;
 
   // ── Getters ────────────────────────────────────────────────
@@ -46,14 +45,18 @@ class ReportProvider extends ChangeNotifier {
   bool                 get isLoading      => _isLoading;
   String?              get error          => _error;
 
-  // ✅ Live stats getters
+  // Live stats getters
   double get todayRevenue => _todayRevenue;
   double get todayProfit  => _todayProfit;
   int    get todayBills   => _todayBills;
 
-  // ── Init: today stream shuru karo ─────────────────────────
-  // MainLayout se call hota hai — ek baar call karo
-  // Phir automatically update hota rahega
+  // ✅ FIX: dashboard_screen line 83 — monthly revenue
+  double get monthRevenue => _monthlySummary?.totalSales ?? _todayRevenue;
+
+  // ✅ FIX: dashboard_screen line 99 — monthly profit
+  double get monthProfit  => _monthlySummary?.totalProfit ?? _todayProfit;
+
+  // ── startTodayStream ───────────────────────────────────────
   void startTodayStream() {
     _todayStreamSub?.cancel();
 
@@ -73,7 +76,6 @@ class ReportProvider extends ChangeNotifier {
         isLessThanOrEqualTo: Timestamp.fromDate(to))
         .snapshots()
         .listen((snap) {
-      // ✅ Har nai sale pe auto-calculate
       final sales = snap.docs
           .map((d) => SaleModel.fromFirestore(
           d.data() as Map<String, dynamic>, d.id))
@@ -83,7 +85,6 @@ class ReportProvider extends ChangeNotifier {
       _todayProfit  = sales.fold(0.0, (s, sale) => s + sale.totalProfit);
       _todayBills   = sales.length;
 
-      // Daily summary bhi update karo
       _dailySummary = DailySummary(
         date:          now,
         totalSales:    _todayRevenue,
@@ -94,17 +95,17 @@ class ReportProvider extends ChangeNotifier {
         itemsSold:     sales.fold(0, (s, sale) => s + sale.totalItems),
       );
 
-      notifyListeners(); // ✅ UI automatically update
+      notifyListeners();
     }, onError: (e) {
       _error = e.toString();
       notifyListeners();
     });
   }
 
-  // ── loadDashboardData — weekly chart + monthly ─────────────
+  // ── loadDashboardData ──────────────────────────────────────
   Future<void> loadDashboardData() async {
-    startTodayStream(); // stream shuru/restart karo
-    _loadOtherStats();  // baaki stats load karo
+    startTodayStream();
+    _loadOtherStats();
   }
 
   Future<void> _loadOtherStats() async {

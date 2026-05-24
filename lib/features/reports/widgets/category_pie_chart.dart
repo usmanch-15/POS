@@ -1,4 +1,6 @@
 // lib/features/reports/widgets/category_pie_chart.dart
+// (No changes needed here — error is in AppColors, see app_colors_patch.dart)
+
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -33,8 +35,9 @@ class CategoryPieChart extends StatelessWidget {
       ),
       child: Column(
         children: data.asMap().entries.map((e) {
-          final i    = e.key;
-          final cat  = e.value;
+          final i     = e.key;
+          final cat   = e.value;
+          // FIX: AppColors.categoryColors is now defined — see app_colors_patch.dart
           final color = AppColors.categoryColors[i % AppColors.categoryColors.length];
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),

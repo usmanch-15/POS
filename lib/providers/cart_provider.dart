@@ -126,7 +126,10 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // FIX-6C: Safe checkout — cart clear sirf success pe hoti hai
+  // ✅ FIX: cart_panel.dart line 179 — clear() method
+  // clearCart() ka short alias — dono kaam karte hain
+  void clear() => clearCart();
+
   Future<SaleModel?> checkout({
     required PaymentMethod paymentMethod,
     double  cashReceived = 0,
@@ -138,12 +141,10 @@ class CartProvider extends ChangeNotifier {
     _setLoading(true);
     _error = null;
 
-    // FIX-6C: Sale object pehle banao — cart items ki snapshot
-    // Agar baad mein kuch fail ho to cart same rahegi
     final saleSnapshot = SaleModel(
       id:             '',
       billNumber:     '',
-      items:          List.from(_items),   // deep copy
+      items:          List.from(_items),
       subtotal:       subtotal,
       discountAmount: _discountAmount,
       taxAmount:      taxAmount,
@@ -162,16 +163,11 @@ class CartProvider extends ChangeNotifier {
     );
 
     try {
-      // FIX-6C: Firestore transaction — agar yeh fail ho,
-      // clearCart() call nahi hogi, cart intact rahegi
       _lastSale = await _service.completeSale(saleSnapshot);
-      // Sirf success pe cart clear karo
       clearCart();
       _setLoading(false);
       return _lastSale;
     } catch (e) {
-      // FIX-6C: Error set karo lekin cart NAHI clear karo
-      // User dobara try kar sakta hai ya items adjust kar sakta hai
       _error = e.toString();
       _setLoading(false);
       return null;
@@ -188,4 +184,3 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
- 
