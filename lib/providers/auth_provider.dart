@@ -1,19 +1,3 @@
-// lib/providers/auth_provider.dart
-// ─────────────────────────────────────────────────────────────
-//  PROJECT PATH:  lib/providers/auth_provider.dart
-//
-//  PART 1 — FIXES:
-//   FIX-1B: registerAdmin() invite-only kiya
-//           Firestore mein invites/{email} document check hota hai.
-//           Agar invite nahi mila — registration block ho jati hai.
-//           Successful registration ke baad invite delete hota hai.
-//
-//   FIX-1A: businessId custom claim set hoti hai login pe
-//           (Note: Custom claim Firebase Admin SDK se server side
-//            set hoti hai — yahan hum login ke baad reload karte hain
-//            taake claim reflect ho)
-// ─────────────────────────────────────────────────────────────
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -52,12 +36,7 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     try {
-      // FIX-1A: Token force refresh karo taake businessId claim mile
-      // Firebase Admin SDK server pe claim set karta hai login ke baad.
-      // getIdToken(true) force refresh karta hai — nahi karo to purani
-      // claim aati hai jo businessId ke bina hoti hai.
       await firebaseUser.getIdToken(true);
-
       _user   = await _service.getUserModel(firebaseUser.uid);
       _status = _user != null
           ? AuthStatus.authenticated
@@ -121,27 +100,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── Register Admin — FIX-1B: Invite-Only ──────────────────
-  //
-  //  PEHLE:
-  //    Koi bhi email/password de ke admin ban sakta tha.
-  //    Koi check nahi tha.
-  //
-  //  AB:
-  //    Step 1 — Firestore mein invites/{email} document check karo.
-  //             Agar nahi mila — registration block.
-  //    Step 2 — Firebase Auth mein user banao.
-  //    Step 3 — Firestore mein UserModel + businessId save karo.
-  //    Step 4 — Settings document banao.
-  //    Step 5 — Invite delete karo (ek baar use hota hai).
-  //
-  //  Invite kaise banao? (Admin Firebase Console se kare ya apna
-  //  admin panel banao):
-  //    firestore
-  //      .collection('invites')
-  //      .doc('newuser@example.com')
-  //      .set({ 'createdBy': adminUid, 'createdAt': FieldValue.serverTimestamp() })
-  //
+  // ── Register Admin — Invite system hataya ──────────────────
   Future<bool> registerAdmin({
     required String name,
     required String email,
@@ -151,24 +110,11 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     _error = null;
 
-    final db           = FirebaseFirestore.instance;
-    final normalEmail  = email.trim().toLowerCase();
+    final db          = FirebaseFirestore.instance;
+    final normalEmail = email.trim().toLowerCase();
 
     try {
-      // ── Step 1: Invite check ───────────────────────────────
-      final inviteDoc = await db
-          .collection('invites')
-          .doc(normalEmail)
-          .get();
-
-      if (!inviteDoc.exists) {
-        _error  = 'Aapke paas valid invite nahi hai. Admin se rabta karein.';
-        _status = AuthStatus.unauthenticated;
-        _setLoading(false);
-        return false;
-      }
-
-      // ── Step 2: Firebase Auth mein user banao ─────────────
+      // ✅ Step 1: Firebase Auth mein user banao
       final cred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email:    normalEmail,
@@ -176,14 +122,10 @@ class AuthProvider extends ChangeNotifier {
       );
       final uid = cred.user!.uid;
 
-      // ── Step 3: businessId generate karo ──────────────────
-      // Har business ki unique ID — sab documents mein yeh field
-      // hogi taake multi-tenant isolation kaam kare.
-      // Simple approach: business ka apna Firestore doc ID use karo.
+      // ✅ Step 2: businessId generate karo
       final businessRef = db.collection('businesses').doc();
       final businessId  = businessRef.id;
 
-      // Firestore mein admin UserModel save karo
       final newUser = UserModel(
         id:        uid,
         name:      name.trim(),
@@ -199,7 +141,7 @@ class AuthProvider extends ChangeNotifier {
         db.collection('users').doc(uid),
         {
           ...newUser.toFirestore(),
-          'businessId': businessId,   // FIX-1A: businessId har user mein
+          'businessId': businessId,
         },
       );
 
@@ -221,27 +163,7 @@ class AuthProvider extends ChangeNotifier {
         },
       );
 
-      // ── Step 5: Invite delete karo ────────────────────────
-      batch.delete(db.collection('invites').doc(normalEmail));
-
       await batch.commit();
-
-      // ── NOTE: Custom Claim server se set hogi ─────────────
-      // Apne backend (Cloud Function) mein yeh likho:
-      //
-      //   exports.onUserCreated = functions.auth.user().onCreate(async (user) => {
-      //     const userDoc = await admin.firestore()
-      //       .collection('users').doc(user.uid).get();
-      //     if (userDoc.exists) {
-      //       await admin.auth().setCustomUserClaims(user.uid, {
-      //         businessId: userDoc.data().businessId,
-      //         role: userDoc.data().role,
-      //       });
-      //     }
-      //   });
-      //
-      // Yeh Cloud Function automatically naye user ke liye
-      // businessId claim set kar degi jab user doc create hoga.
 
       _user   = newUser;
       _status = AuthStatus.authenticated;

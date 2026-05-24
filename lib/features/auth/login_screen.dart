@@ -1,14 +1,9 @@
-// lib/features/auth/login_screen.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Premium Login Screen
-//  Design: Dark glass morphism, animated entry, glow inputs
-// ─────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import 'widgets/logo_header.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     _formCtrl = AnimationController(
-      vsync: this,
+      vsync:    this,
       duration: const Duration(milliseconds: 750),
     );
     _formSlide = Tween<Offset>(
@@ -62,10 +57,11 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted && auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(auth.error!),
+          content:         Text(auth.error!),
           backgroundColor: const Color(0xFFE24B4A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          behavior:        SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -77,66 +73,61 @@ class _LoginScreenState extends State<LoginScreen>
     final auth   = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF060D1A) : const Color(0xFFF0F4FA),
-      body: Stack(
-        children: [
-          // ── Background decoration ──────────────────────────
-          _Background(isDark: isDark),
+      backgroundColor:
+      isDark ? const Color(0xFF060D1A) : const Color(0xFFF0F4FA),
+      body: Stack(children: [
+        _Background(isDark: isDark),
+        SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const LogoHeader(),
+                const SizedBox(height: 40),
 
-          // ── Content ───────────────────────────────────────
-          SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const LogoHeader(),
-                  const SizedBox(height: 40),
-
-                  // ── Form card ───────────────────────────────
-                  SlideTransition(
-                    position: _formSlide,
-                    child: FadeTransition(
-                      opacity: _formFade,
-                      child: _FormCard(
-                        formKey:      _formKey,
-                        emailCtrl:    _emailCtrl,
-                        passCtrl:     _passCtrl,
-                        obscure:      _obscure,
-                        emailFocused: _emailFocused,
-                        passFocused:  _passFocused,
-                        isLoading:    auth.isLoading,
-                        isDark:       isDark,
-                        onEmailFocus: (v) => setState(() => _emailFocused = v),
-                        onPassFocus:  (v) => setState(() => _passFocused  = v),
-                        onTogglePass: () => setState(() => _obscure = !_obscure),
-                        onSubmit:     _submit,
-                      ),
+                // Form card
+                SlideTransition(
+                  position: _formSlide,
+                  child: FadeTransition(
+                    opacity: _formFade,
+                    child: _FormCard(
+                      formKey:      _formKey,
+                      emailCtrl:    _emailCtrl,
+                      passCtrl:     _passCtrl,
+                      obscure:      _obscure,
+                      emailFocused: _emailFocused,
+                      passFocused:  _passFocused,
+                      isLoading:    auth.isLoading,
+                      isDark:       isDark,
+                      onEmailFocus: (v) => setState(() => _emailFocused = v),
+                      onPassFocus:  (v) => setState(() => _passFocused  = v),
+                      onTogglePass: () => setState(() => _obscure = !_obscure),
+                      onSubmit:     _submit,
                     ),
                   ),
+                ),
+                const SizedBox(height: 28),
 
-                  const SizedBox(height: 32),
-
-                  // ── Footer ──────────────────────────────────
-                  SlideTransition(
-                    position: _formSlide,
-                    child: FadeTransition(
-                      opacity: _formFade,
-                      child: _Footer(isDark: isDark),
-                    ),
+                // ✅ Sign Up link
+                SlideTransition(
+                  position: _formSlide,
+                  child: FadeTransition(
+                    opacity: _formFade,
+                    child: _Footer(isDark: isDark),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
 
-// ── Background blobs ────────────────────────────────────────────
+// ── Background ──────────────────────────────────────────────────
 class _Background extends StatelessWidget {
   final bool isDark;
   const _Background({required this.isDark});
@@ -151,7 +142,10 @@ class _Background extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(colors: [
-              (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFBBD4F5)).withOpacity(0.55),
+              (isDark
+                  ? const Color(0xFF1E3A5F)
+                  : const Color(0xFFBBD4F5))
+                  .withOpacity(0.55),
               Colors.transparent,
             ]),
           ),
@@ -164,7 +158,10 @@ class _Background extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(colors: [
-              (isDark ? const Color(0xFF0F3460) : const Color(0xFFD0E8FF)).withOpacity(0.40),
+              (isDark
+                  ? const Color(0xFF0F3460)
+                  : const Color(0xFFD0E8FF))
+                  .withOpacity(0.40),
               Colors.transparent,
             ]),
           ),
@@ -176,11 +173,12 @@ class _Background extends StatelessWidget {
 
 // ── Form card ───────────────────────────────────────────────────
 class _FormCard extends StatelessWidget {
-  final GlobalKey<FormState> formKey;
+  final GlobalKey<FormState>  formKey;
   final TextEditingController emailCtrl, passCtrl;
-  final bool obscure, emailFocused, passFocused, isLoading, isDark;
-  final ValueChanged<bool> onEmailFocus, onPassFocus;
-  final VoidCallback onTogglePass, onSubmit;
+  final bool                  obscure, emailFocused, passFocused,
+      isLoading, isDark;
+  final ValueChanged<bool>    onEmailFocus, onPassFocus;
+  final VoidCallback          onTogglePass, onSubmit;
 
   const _FormCard({
     required this.formKey,
@@ -212,9 +210,9 @@ class _FormCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.35 : 0.10),
+            color:      Colors.black.withOpacity(isDark ? 0.35 : 0.10),
             blurRadius: 40,
-            offset: const Offset(0, 12),
+            offset:     const Offset(0, 12),
           ),
         ],
       ),
@@ -224,7 +222,6 @@ class _FormCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Heading
             Text(
               'Welcome back',
               style: TextStyle(
@@ -247,15 +244,15 @@ class _FormCard extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Email field
+            // Email
             _FieldLabel(label: 'Email address', isDark: isDark),
             const SizedBox(height: 8),
             _GlowField(
-              controller: emailCtrl,
-              isFocused:  emailFocused,
-              isDark:     isDark,
-              hintText:   'you@company.com',
-              prefixIcon: Icons.alternate_email_rounded,
+              controller:   emailCtrl,
+              isFocused:    emailFocused,
+              isDark:       isDark,
+              hintText:     'you@company.com',
+              prefixIcon:   Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
               onFocusChange: onEmailFocus,
               validator: (v) {
@@ -266,20 +263,17 @@ class _FormCard extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // Password field
+            // Password
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _FieldLabel(label: 'Password', isDark: isDark),
-                GestureDetector(
-                  onTap: () {},
-                  child: Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary.withOpacity(0.85),
-                      fontWeight: FontWeight.w500,
-                    ),
+                Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    fontSize:   12,
+                    color:      AppColors.primary.withOpacity(0.85),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -313,7 +307,6 @@ class _FormCard extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Submit button
             _LoginButton(isLoading: isLoading, onTap: onSubmit),
           ],
         ),
@@ -329,32 +322,30 @@ class _FieldLabel extends StatelessWidget {
   const _FieldLabel({required this.label, required this.isDark});
 
   @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize:   12.5,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.2,
-        color: isDark
-            ? Colors.white.withOpacity(0.55)
-            : const Color(0xFF0D1B2A).withOpacity(0.55),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize:      12.5,
+      fontWeight:    FontWeight.w600,
+      letterSpacing: 0.2,
+      color: isDark
+          ? Colors.white.withOpacity(0.55)
+          : const Color(0xFF0D1B2A).withOpacity(0.55),
+    ),
+  );
 }
 
-// ── Glow input field ────────────────────────────────────────────
+// ── Glow field ──────────────────────────────────────────────────
 class _GlowField extends StatefulWidget {
-  final TextEditingController controller;
-  final bool                  isFocused;
-  final bool                  isDark;
-  final String                hintText;
-  final IconData              prefixIcon;
-  final bool                  obscureText;
-  final TextInputType?        keyboardType;
-  final Widget?               suffixIcon;
-  final ValueChanged<bool>    onFocusChange;
+  final TextEditingController      controller;
+  final bool                       isFocused;
+  final bool                       isDark;
+  final String                     hintText;
+  final IconData                   prefixIcon;
+  final bool                       obscureText;
+  final TextInputType?             keyboardType;
+  final Widget?                    suffixIcon;
+  final ValueChanged<bool>         onFocusChange;
   final FormFieldValidator<String>? validator;
 
   const _GlowField({
@@ -383,7 +374,11 @@ class _GlowFieldState extends State<_GlowField> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         boxShadow: widget.isFocused
-            ? [BoxShadow(color: accent.withOpacity(0.22), blurRadius: 16, spreadRadius: 1)]
+            ? [BoxShadow(
+          color:       accent.withOpacity(0.22),
+          blurRadius:  16,
+          spreadRadius: 1,
+        )]
             : [],
       ),
       child: Focus(
@@ -407,29 +402,30 @@ class _GlowFieldState extends State<_GlowField> {
             ),
             prefixIcon: Padding(
               padding: const EdgeInsets.only(left: 14, right: 10),
-              child: Icon(
-                widget.prefixIcon,
-                size: 18,
-                color: widget.isFocused
-                    ? accent
-                    : (widget.isDark
-                    ? Colors.white.withOpacity(0.30)
-                    : Colors.black.withOpacity(0.30)),
-              ),
+              child: Icon(widget.prefixIcon,
+                  size: 18,
+                  color: widget.isFocused
+                      ? accent
+                      : (widget.isDark
+                      ? Colors.white.withOpacity(0.30)
+                      : Colors.black.withOpacity(0.30))),
             ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 46, minHeight: 0),
+            prefixIconConstraints:
+            const BoxConstraints(minWidth: 46, minHeight: 0),
             suffixIcon: widget.suffixIcon != null
                 ? Padding(
               padding: const EdgeInsets.only(right: 14),
-              child: widget.suffixIcon,
+              child:   widget.suffixIcon,
             )
                 : null,
-            suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 0),
-            filled:      true,
-            fillColor:   widget.isDark
+            suffixIconConstraints:
+            const BoxConstraints(minWidth: 40, minHeight: 0),
+            filled:    true,
+            fillColor: widget.isDark
                 ? Colors.white.withOpacity(0.05)
                 : Colors.black.withOpacity(0.04),
-            contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+            contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide:   BorderSide.none,
@@ -444,15 +440,17 @@ class _GlowFieldState extends State<_GlowField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: accent, width: 1.5),
+              borderSide:   BorderSide(color: accent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE24B4A)),
+              borderSide:
+              const BorderSide(color: Color(0xFFE24B4A)),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE24B4A), width: 1.5),
+              borderSide:
+              const BorderSide(color: Color(0xFFE24B4A), width: 1.5),
             ),
             errorStyle: const TextStyle(fontSize: 11.5),
           ),
@@ -464,7 +462,7 @@ class _GlowFieldState extends State<_GlowField> {
 
 // ── Login button ────────────────────────────────────────────────
 class _LoginButton extends StatefulWidget {
-  final bool      isLoading;
+  final bool         isLoading;
   final VoidCallback onTap;
   const _LoginButton({required this.isLoading, required this.onTap});
 
@@ -480,20 +478,24 @@ class _LoginButtonState extends State<_LoginButton>
   @override
   void initState() {
     super.initState();
-    _ctrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
+    _ctrl  = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
     _scale = Tween<double>(begin: 1.0, end: 0.97)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp:   (_) { _ctrl.reverse(); widget.onTap(); },
-      onTapCancel: ()  => _ctrl.reverse(),
+      onTapDown:  (_) => _ctrl.forward(),
+      onTapUp:    (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
         child: AnimatedContainer(
@@ -508,7 +510,9 @@ class _LoginButtonState extends State<_LoginButton>
               begin: Alignment.topLeft,
               end:   Alignment.bottomRight,
             ),
-            boxShadow: widget.isLoading ? [] : [
+            boxShadow: widget.isLoading
+                ? []
+                : [
               BoxShadow(
                 color:      const Color(0xFF1565C0).withOpacity(0.38),
                 blurRadius: 20,
@@ -519,16 +523,17 @@ class _LoginButtonState extends State<_LoginButton>
           child: Center(
             child: widget.isLoading
                 ? const SizedBox(
-              width: 22, height: 22,
-              child: CircularProgressIndicator(
+              width:  22,
+              height: 22,
+              child:  CircularProgressIndicator(
                 strokeWidth: 2.2,
                 color:       Colors.white,
               ),
             )
-                : Row(
+                : const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Sign In',
                   style: TextStyle(
                     fontSize:      15.5,
@@ -537,12 +542,9 @@ class _LoginButtonState extends State<_LoginButton>
                     letterSpacing: 0.3,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size:  18,
-                ),
+                SizedBox(width: 8),
+                Icon(Icons.arrow_forward_rounded,
+                    color: Colors.white, size: 18),
               ],
             ),
           ),
@@ -552,7 +554,7 @@ class _LoginButtonState extends State<_LoginButton>
   }
 }
 
-// ── Footer ──────────────────────────────────────────────────────
+// ── Footer — Sign Up link ───────────────────────────────────────
 class _Footer extends StatelessWidget {
   final bool isDark;
   const _Footer({required this.isDark});
@@ -560,50 +562,82 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 28, height: 1,
+      child: Column(children: [
+
+        // ✅ Sign Up link
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Pehli baar aa rahe hain? ',
+              style: TextStyle(
+                fontSize: 13,
                 color: isDark
-                    ? Colors.white.withOpacity(0.10)
-                    : Colors.black.withOpacity(0.10),
+                    ? Colors.white.withOpacity(0.38)
+                    : Colors.black.withOpacity(0.42),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  'Secured with Firebase Auth',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? Colors.white.withOpacity(0.22)
-                        : Colors.black.withOpacity(0.25),
-                    letterSpacing: 0.2,
-                  ),
+            ),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const SignupScreen()),
+              ),
+              child: Text(
+                'Account banayein',
+                style: TextStyle(
+                  fontSize:   13,
+                  fontWeight: FontWeight.w600,
+                  color:      AppColors.primary,
                 ),
               ),
-              Container(
-                width: 28, height: 1,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Divider
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+                width: 28,
+                height: 1,
                 color: isDark
                     ? Colors.white.withOpacity(0.10)
-                    : Colors.black.withOpacity(0.10),
+                    : Colors.black.withOpacity(0.10)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                'Secured with Firebase Auth',
+                style: TextStyle(
+                  fontSize:      11,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.22)
+                      : Colors.black.withOpacity(0.25),
+                  letterSpacing: 0.2,
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '© 2025 StockPro — All rights reserved',
-            style: TextStyle(
-              fontSize: 10.5,
-              color: isDark
-                  ? Colors.white.withOpacity(0.15)
-                  : Colors.black.withOpacity(0.18),
             ),
+            Container(
+                width: 28,
+                height: 1,
+                color: isDark
+                    ? Colors.white.withOpacity(0.10)
+                    : Colors.black.withOpacity(0.10)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '© 2025 StockPro — All rights reserved',
+          style: TextStyle(
+            fontSize: 10.5,
+            color: isDark
+                ? Colors.white.withOpacity(0.15)
+                : Colors.black.withOpacity(0.18),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
