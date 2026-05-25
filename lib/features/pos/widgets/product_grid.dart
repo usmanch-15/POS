@@ -1,56 +1,63 @@
 // lib/features/pos/widgets/product_grid.dart
+// StockPro — POS Product Grid
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/responsive_helper.dart';
+import '../../../core/widgets/premium_widgets.dart';
 import '../../../providers/product_provider.dart';
-import '../../../providers/cart_provider.dart';
-import '../../../widgets/empty_state.dart';
-import '../../../widgets/loading_overlay.dart';
 import 'product_tile.dart';
 
 class ProductGrid extends StatelessWidget {
   final String searchQuery;
-  final String category;
-
+  final String selectedCategory;
   const ProductGrid({
     super.key,
     required this.searchQuery,
-    required this.category,
+    required this.selectedCategory,
   });
 
   @override
   Widget build(BuildContext context) {
-    final productProvider = context.watch<ProductProvider>();
+    final provider  = context.watch<ProductProvider>();
+    final isMobile  = ResponsiveHelper.isMobile(context);
+    final crossAxis = isMobile ? 2 : 3;
 
-    if (productProvider.isLoading) return const InlineLoader();
+    var products = provider.allProducts;
 
-    // Filter products
-    var list = productProvider.allProducts
-        .where((p) => p.isActive)
-        .toList();
-
-    if (category != 'All') {
-      list = list.where((p) => p.category == category).toList();
+    if (selectedCategory != 'All') {
+      products = products
+          .where((p) => p.category == selectedCategory)
+          .toList();
     }
+
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
-      list = list.where((p) =>
-          p.name.toLowerCase().contains(q) ||
-          (p.barcode?.contains(q) ?? false)).toList();
+      products = products
+          .where((p) =>
+      p.name.toLowerCase().contains(q) ||
+          p.barcode?.contains(q) == true)
+          .toList();
     }
 
-    if (list.isEmpty) return const EmptyState.products();
+    if (provider.isLoading) return const PremiumLoader();
+
+    if (products.isEmpty) {
+      return searchQuery.isNotEmpty
+          ? const PremiumEmptyState.search()
+          : const PremiumEmptyState.products();
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount:  2,
-        mainAxisSpacing: 10,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxis,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.3,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.78,
       ),
-      itemCount: list.length,
-      itemBuilder: (_, i) => ProductTile(product: list[i]),
+      itemCount: products.length,
+      itemBuilder: (_, i) => ProductTile(product: products[i]),
     );
   }
 }

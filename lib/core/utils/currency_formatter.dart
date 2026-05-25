@@ -1,62 +1,45 @@
 // lib/core/utils/currency_formatter.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Currency & Number Formatting Utilities
-// ─────────────────────────────────────────────────────────────
+// StockPro — Currency formatting helper
 
 import 'package:intl/intl.dart';
 
 class CurrencyFormatter {
   CurrencyFormatter._();
 
-  static String _symbol = 'PKR';
+  static String _symbol = 'Rs.';
+  static String _locale = 'en_PK';
 
-  /// Call once at app start from SettingsProvider
-  static void setSymbol(String symbol) => _symbol = symbol;
+  static void configure({String symbol = 'Rs.', String locale = 'en_PK'}) {
+    _symbol = symbol;
+    _locale = locale;
+  }
 
-  /// PKR 1,250.00
+  // Main formatter — Rs. 1,234.00
   static String format(double amount) {
-    final formatter = NumberFormat('#,##0.00', 'en_US');
+    final formatter = NumberFormat('#,##0.00', _locale);
     return '$_symbol ${formatter.format(amount)}';
   }
 
-  /// PKR 1,250 (no decimals — for stat cards)
-  static String formatCompact(double amount) {
-    final formatter = NumberFormat('#,##0', 'en_US');
-    return '$_symbol ${formatter.format(amount)}';
-  }
-
-  /// 1,250.00 (no symbol)
-  static String formatNumber(double amount) {
-    return NumberFormat('#,##0.00', 'en_US').format(amount);
-  }
-
-  /// 1,250 (no symbol, no decimals)
-  static String formatInt(int amount) {
-    return NumberFormat('#,##0', 'en_US').format(amount);
-  }
-
-  /// 1.2K / 1.5M / 2.3B — for big stat numbers
-  static String formatAbbreviated(double amount) {
-    if (amount >= 1000000000) {
-      return '${_symbol} ${(amount / 1000000000).toStringAsFixed(1)}B';
-    } else if (amount >= 1000000) {
-      return '${_symbol} ${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount >= 1000) {
-      return '${_symbol} ${(amount / 1000).toStringAsFixed(1)}K';
+  // Compact — Rs. 1.2K
+  static String compact(double amount) {
+    if (amount >= 1000000) {
+      return '$_symbol ${(amount / 1000000).toStringAsFixed(1)}M';
+    }
+    if (amount >= 1000) {
+      return '$_symbol ${(amount / 1000).toStringAsFixed(1)}K';
     }
     return format(amount);
   }
 
-  /// Profit margin % → "24.5%"
-  static String formatPercent(double value, {int decimals = 1}) {
-    return '${value.toStringAsFixed(decimals)}%';
+  // No symbol — 1,234.00
+  static String plain(double amount) {
+    final formatter = NumberFormat('#,##0.00', _locale);
+    return formatter.format(amount);
   }
 
-  /// Parse "1,250.00" → 1250.0
-  static double? tryParse(String raw) {
-    final cleaned = raw.replaceAll(',', '').replaceAll(_symbol, '').trim();
-    return double.tryParse(cleaned);
+  // Integer — Rs. 1,234
+  static String integer(double amount) {
+    final formatter = NumberFormat('#,##0', _locale);
+    return '$_symbol ${formatter.format(amount)}';
   }
-
-  static String get symbol => _symbol;
 }

@@ -1,45 +1,79 @@
 // lib/features/reports/widgets/report_card.dart
+// StockPro — Report Stat Card
+
 import 'package:flutter/material.dart';
-import '../../../core/utils/currency_formatter.dart';
 
 class ReportCard extends StatelessWidget {
-  final String         label;
-  final double         value;
+  final String label;
+  final String value;
+  final IconData icon;
   final LinearGradient gradient;
-  final bool           isCurrency;
+  final String? sub;
+  final bool isCurrency;
 
   const ReportCard({
     super.key,
     required this.label,
     required this.value,
+    required this.icon,
     required this.gradient,
+    this.sub,
     this.isCurrency = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradient.colors.first.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 15),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(value,
               style: const TextStyle(
-                  color: Colors.white70, fontSize: 11)),
-          Text(
-            isCurrency
-                ? CurrencyFormatter.formatCompact(value)
-                : value.toInt().toString(),
-            style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
-                fontWeight: FontWeight.w700),
-          ),
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              )),
+          if (sub != null)
+            Text(sub!,
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.6), fontSize: 10)),
         ],
       ),
     );

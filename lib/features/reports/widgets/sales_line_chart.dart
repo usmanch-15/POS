@@ -1,78 +1,108 @@
 // lib/features/reports/widgets/sales_line_chart.dart
+// StockPro — Sales Line Chart (same style as dashboard chart)
+
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/currency_formatter.dart';
-import '../../../models/report_model.dart';
 
 class SalesLineChart extends StatelessWidget {
-  final List<ChartDataPoint> dataPoints;
-  const SalesLineChart({super.key, required this.dataPoints});
+  final List<Map<String, dynamic>> data;
+  const SalesLineChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (dataPoints.isEmpty) {
-      return Container(
-        height: 160,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(child: Text('No data')),
-      );
+    if (data.isEmpty) {
+      return const SizedBox(
+          height: 180, child: Center(child: Text('No data')));
     }
 
-    final maxVal = dataPoints.map((d) => d.value).reduce((a, b) => a > b ? a : b);
+    final spots = data.asMap().entries
+        .map((e) => FlSpot(
+        e.key.toDouble(), (e.value['amount'] as num).toDouble()))
+        .toList();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
-      child: Column(children: [
-        SizedBox(
-          height: 130,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: dataPoints.map((dp) {
-              final ratio = maxVal > 0 ? dp.value / maxVal : 0.0;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Tooltip(
-                        message: CurrencyFormatter.formatCompact(dp.value),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 600),
-                          curve: Curves.easeOut,
-                          height: (ratio * 100).clamp(4, 100),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(dp.label,
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: isDark
-                                  ? AppColors.darkText3
-                                  : AppColors.lightText3)),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+
+    return SizedBox(
+      height: 180,
+      child: LineChart(LineChartData(
+        minY: 0,
+        maxY: maxY * 1.2,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxY / 4,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.black.withOpacity(0.05),
+            strokeWidth: 1,
           ),
         ),
-      ]),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles:
+          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= data.length) return const SizedBox();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    data[i]['day']?.toString() ?? '',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: isDark
+                            ? AppColors.darkText3
+                            : AppColors.lightText3),
+                  ),
+                );
+              },
+              reservedSize: 28,
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.35,
+            color: AppColors.success,
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                radius: 3.5,
+                color: AppColors.success,
+                strokeWidth: 2,
+                strokeColor:
+                isDark ? AppColors.darkCard : AppColors.lightCard,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.success.withOpacity(0.15),
+                  AppColors.success.withOpacity(0.0),
+                ],
+              ),
+            ),
+          ),
+        ],
+      )),
     );
   }
 }

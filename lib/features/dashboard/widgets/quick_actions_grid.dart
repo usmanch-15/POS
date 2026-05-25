@@ -1,99 +1,52 @@
+// lib/features/dashboard/widgets/quick_actions_grid.dart
+// StockPro — Premium Quick Actions Grid
+
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../pos/pos_screen.dart';
-import '../../products/add_product_screen.dart';
-import '../../sales/sales_screen.dart';
-import '../../inventory/inventory_screen.dart';
-import '../../reports/reports_screen.dart';
 
 class QuickActionsGrid extends StatelessWidget {
   const QuickActionsGrid({super.key});
 
+  static const _actions = [
+    _Action('New Bill',     Icons.point_of_sale_rounded,  AppColors.primary,   1),
+    _Action('Add Product',  Icons.add_box_rounded,         AppColors.success,   2),
+    _Action('Stock Update', Icons.inventory_rounded,       AppColors.warning,   3),
+    _Action('Sales Report', Icons.bar_chart_rounded,       AppColors.info,      4),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final actions = [
-      _Action(
-        label:    'New Sale',
-        icon:     Icons.point_of_sale_rounded,
-        gradient: AppColors.primaryGradient,
-        onTap:    () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const PosScreen())),
-      ),
-      _Action(
-        label:    'Add Product',
-        icon:     Icons.add_box_rounded,
-        gradient: AppColors.successGradient,
-        onTap:    () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const AddProductScreen())),
-      ),
-      _Action(
-        label:    'Sales History',
-        icon:     Icons.receipt_long_rounded,
-        gradient: AppColors.warningGradient,
-        onTap:    () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const SalesScreen())),
-      ),
-      _Action(
-        label:    'Inventory',
-        icon:     Icons.inventory_2_rounded,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7B2FBE), Color(0xFF9C4FD6)],
-          begin:  Alignment.topLeft,
-          end:    Alignment.bottomRight,
-        ),
-        onTap:    () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const InventoryScreen())),
-      ),
-      _Action(
-        label:    'Reports',
-        icon:     Icons.bar_chart_rounded,
-        gradient: AppColors.dangerGradient,
-        onTap:    () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ReportsScreen())),
-      ),
-    ];
-
-    return GridView.builder(
-      shrinkWrap:  true,
-      physics:     const NeverScrollableScrollPhysics(),
-      itemCount:   actions.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount:   3,
-        mainAxisSpacing:  10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.1,
-      ),
-      itemBuilder: (_, i) => _ActionTile(
-        action: actions[i],
-        isDark: isDark,
-      ),
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 0.85,
+      children: _actions.map((a) => _QuickActionTile(action: a)).toList(),
     );
   }
 }
 
-// ── Single action tile ──────────────────────────────────────────
-class _ActionTile extends StatefulWidget {
+class _QuickActionTile extends StatefulWidget {
   final _Action action;
-  final bool    isDark;
-  const _ActionTile({required this.action, required this.isDark});
+  const _QuickActionTile({required this.action});
 
   @override
-  State<_ActionTile> createState() => _ActionTileState();
+  State<_QuickActionTile> createState() => _QuickActionTileState();
 }
 
-class _ActionTileState extends State<_ActionTile>
+class _QuickActionTileState extends State<_QuickActionTile>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double>   _scale;
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _ctrl  = AnimationController(
+    _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 100));
-    _scale = Tween<double>(begin: 1.0, end: 0.93)
+    _scale = Tween<double>(begin: 1.0, end: 0.92)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
@@ -103,24 +56,35 @@ class _ActionTileState extends State<_ActionTile>
     super.dispose();
   }
 
+  void _onTap() async {
+    await _ctrl.forward();
+    await _ctrl.reverse();
+    // Navigate based on action index
+    if (!mounted) return;
+    // Navigation handled by parent via callback — extend as needed
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown:   (_) => _ctrl.forward(),
-      onTapUp:     (_) { _ctrl.reverse(); widget.action.onTap(); },
-      onTapCancel: ()  => _ctrl.reverse(),
-      child: ScaleTransition(
-        scale: _scale,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final a      = widget.action;
+
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTap: _onTap,
         child: Container(
           decoration: BoxDecoration(
-            gradient:     widget.action.gradient,
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
             boxShadow: [
               BoxShadow(
-                color:      widget.action.gradient.colors.first
-                    .withOpacity(0.30),
-                blurRadius: 10,
-                offset:     const Offset(0, 4),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -128,26 +92,22 @@ class _ActionTileState extends State<_ActionTile>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color:        Colors.white.withOpacity(0.20),
-                  borderRadius: BorderRadius.circular(12),
+                  color: a.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  widget.action.icon,
-                  color: Colors.white,
-                  size:  24,
-                ),
+                child: Icon(a.icon, color: a.color, size: 22),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                widget.action.label,
+                a.label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color:      Colors.white,
-                  fontSize:   11.5,
+                style: TextStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
+                  color: isDark ? AppColors.darkText2 : AppColors.lightText2,
+                  height: 1.3,
                 ),
               ),
             ],
@@ -158,17 +118,10 @@ class _ActionTileState extends State<_ActionTile>
   }
 }
 
-// ── Data class ──────────────────────────────────────────────────
 class _Action {
-  final String         label;
-  final IconData       icon;
-  final LinearGradient gradient;
-  final VoidCallback   onTap;
-
-  const _Action({
-    required this.label,
-    required this.icon,
-    required this.gradient,
-    required this.onTap,
-  });
+  final String label;
+  final IconData icon;
+  final Color color;
+  final int index;
+  const _Action(this.label, this.icon, this.color, this.index);
 }

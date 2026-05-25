@@ -1,27 +1,20 @@
 // lib/core/utils/responsive_helper.dart
-// ─────────────────────────────────────────────────────────────
-//  StockPro — Responsive Layout Helpers
-// ─────────────────────────────────────────────────────────────
+// StockPro — Responsive breakpoints and helpers
 
 import 'package:flutter/material.dart';
 
 class ResponsiveHelper {
   ResponsiveHelper._();
 
-  // ── Breakpoints ────────────────────────────────────────────
-  static const double _mobileMax  = 600;
-  static const double _tabletMax  = 1024;
-
   static bool isMobile(BuildContext context) =>
-      MediaQuery.of(context).size.width < _mobileMax;
+      MediaQuery.of(context).size.width < 768;
 
-  static bool isTablet(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    return w >= _mobileMax && w < _tabletMax;
-  }
+  static bool isTablet(BuildContext context) =>
+      MediaQuery.of(context).size.width >= 768 &&
+          MediaQuery.of(context).size.width < 1200;
 
   static bool isDesktop(BuildContext context) =>
-      MediaQuery.of(context).size.width >= _tabletMax;
+      MediaQuery.of(context).size.width >= 1200;
 
   static double screenWidth(BuildContext context) =>
       MediaQuery.of(context).size.width;
@@ -29,45 +22,41 @@ class ResponsiveHelper {
   static double screenHeight(BuildContext context) =>
       MediaQuery.of(context).size.height;
 
-  // ── Grid Columns ───────────────────────────────────────────
+  // Grid columns based on screen size
   static int gridColumns(BuildContext context) {
-    if (isDesktop(context)) return 4;
-    if (isTablet(context))  return 3;
-    return 2;
+    final w = screenWidth(context);
+    if (w >= 1200) return 4;
+    if (w >= 900)  return 3;
+    if (w >= 600)  return 2;
+    return 1;
   }
 
-  static int statCardColumns(BuildContext context) {
-    if (isDesktop(context)) return 4;
-    if (isTablet(context))  return 4;
-    return 2;
-  }
-
-  // ── Adaptive Padding ───────────────────────────────────────
+  // Page horizontal padding
   static EdgeInsets pagePadding(BuildContext context) {
-    if (isDesktop(context)) return const EdgeInsets.all(24);
-    if (isTablet(context))  return const EdgeInsets.all(20);
-    return const EdgeInsets.all(16);
+    if (isDesktop(context)) {
+      return const EdgeInsets.symmetric(horizontal: 32, vertical: 24);
+    }
+    if (isTablet(context)) {
+      return const EdgeInsets.symmetric(horizontal: 24, vertical: 20);
+    }
+    return const EdgeInsets.symmetric(horizontal: 16, vertical: 16);
   }
 
-  // ── Adaptive Font Size ─────────────────────────────────────
-  static double fontSize(BuildContext context, {
-    required double mobile,
-    double? tablet,
-    double? desktop,
-  }) {
-    if (isDesktop(context)) return desktop ?? (mobile + 4);
-    if (isTablet(context))  return tablet  ?? (mobile + 2);
-    return mobile;
-  }
-
-  // ── Value by size ──────────────────────────────────────────
+  // Responsive value helper
   static T value<T>(BuildContext context, {
     required T mobile,
     T? tablet,
-    T? desktop,
+    required T desktop,
   }) {
-    if (isDesktop(context)) return desktop ?? tablet ?? mobile;
-    if (isTablet(context))  return tablet  ?? mobile;
+    if (isDesktop(context)) return desktop;
+    if (isTablet(context)) return tablet ?? desktop;
     return mobile;
   }
+
+  // Font sizes
+  static double titleSize(BuildContext context) =>
+      value(context, mobile: 20.0, tablet: 24.0, desktop: 28.0);
+
+  static double bodySize(BuildContext context) =>
+      value(context, mobile: 13.0, desktop: 15.0);
 }

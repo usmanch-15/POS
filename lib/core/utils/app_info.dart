@@ -1,4 +1,6 @@
-import 'package:package_info_plus/package_info_plus.dart';
+// lib/core/utils/app_info.dart
+
+import 'package:package_info_plus/package_info_plus.dart'; // ← FIX: import add kiya
 
 class AppInfo {
   static PackageInfo? _info;
@@ -9,12 +11,11 @@ class AppInfo {
     _info = await PackageInfo.fromPlatform();
   }
 
-  static String get version    => _info?.version        ?? '1.0.0';
-  static String get buildNumber => _info?.buildNumber   ?? '1';
-  static String get appName    => _info?.appName        ?? 'StockPro';
-  static String get fullVersion => 'v${version} (${buildNumber})';
+  static String get version     => _info?.version     ?? '1.0.0';
+  static String get buildNumber => _info?.buildNumber ?? '1';
+  static String get appName     => _info?.appName     ?? 'StockPro';
+  static String get fullVersion => 'v$version ($buildNumber)';
 
 // Settings screen mein use karo:
 //   Text('${AppInfo.appName} ${AppInfo.fullVersion}')
-// Yeh automatically pubspec.yaml ka version dikhayega
 }

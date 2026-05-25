@@ -12,7 +12,7 @@ import '../../providers/report_provider.dart';
 import '../../widgets/loading_overlay.dart';
 import 'widgets/report_card.dart';
 import 'widgets/sales_line_chart.dart';
-import 'widgets/profit_bar_chart.dart';
+import 'widgets/profit_bar_chart.dart' hide CategoryPieChart;
 import 'widgets/category_pie_chart.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -117,7 +117,7 @@ class _TodayTab extends StatelessWidget {
           crossAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            ReportCard(label: 'Revenue',    value: s.totalSales,    gradient: AppColors.primaryGradient),
+            ReportCard(label: 'Revenue',    value: s.totalSales,    gradient: AppColors.primaryGradient, icon: null,),
             ReportCard(label: 'Profit',     value: s.totalProfit,   gradient: AppColors.successGradient),
             ReportCard(label: 'Discount',   value: s.totalDiscount, gradient: AppColors.warningGradient),
             ReportCard(label: 'Bills',      value: s.billCount.toDouble(), gradient: AppColors.dangerGradient, isCurrency: false),
@@ -171,7 +171,7 @@ class _MonthTab extends StatelessWidget {
             ReportCard(label: 'Revenue',   value: s.totalSales,    gradient: AppColors.primaryGradient),
             ReportCard(label: 'Gross Profit', value: s.totalProfit, gradient: AppColors.successGradient),
             ReportCard(label: 'Expenses',  value: s.totalExpenses, gradient: AppColors.warningGradient),
-            ReportCard(label: 'Net Profit', value: s.netProfit,    gradient: AppColors.dangerGradient),
+            ReportCard(label: 'Net Profit', value: s.netProfit,    gradient: AppColors.dangerGradient, icon: null,),
           ],
         ),
         const SizedBox(height: 20),

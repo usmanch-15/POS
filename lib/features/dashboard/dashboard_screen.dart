@@ -123,7 +123,7 @@ class DashboardScreen extends StatelessWidget {
                   PremiumCard(
                     padding: const EdgeInsets.all(16),
                     // FIX: changed `data:` → `dataPoints:` to match SalesChartWidget constructor
-                    child: SalesChartWidget(dataPoints: report.weeklyChart),
+                    child: SalesChartWidget(dataPoints: report.weeklyChart, data: [],),
                   ),
                   const SizedBox(height: 24),
 

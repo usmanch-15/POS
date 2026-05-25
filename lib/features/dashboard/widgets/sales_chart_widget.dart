@@ -1,120 +1,126 @@
 // lib/features/dashboard/widgets/sales_chart_widget.dart
+// StockPro — Weekly Sales Line Chart (fl_chart)
+
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/currency_formatter.dart';
-import '../../../models/report_model.dart';
 
 class SalesChartWidget extends StatelessWidget {
-  final List<ChartDataPoint> dataPoints;
-  const SalesChartWidget({super.key, required this.dataPoints});
+  final List<Map<String, dynamic>> data; // [{day, amount}]
+  const SalesChartWidget({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (dataPoints.isEmpty) {
-      return Container(
-        height: 160,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-        ),
-        child: const Center(
-          child: Text('No data yet',
-              style: TextStyle(color: AppColors.lightText3)),
-        ),
+    if (data.isEmpty) {
+      return const SizedBox(
+        height: 180,
+        child: Center(child: Text('No chart data')),
       );
     }
 
-    final maxVal =
-        dataPoints.map((d) => d.value).reduce((a, b) => a > b ? a : b);
+    final spots = data.asMap().entries.map((e) =>
+        FlSpot(e.key.toDouble(),
+            (e.value['amount'] as num).toDouble())).toList();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Legend
-          Row(children: [
-            _legend('Sales', AppColors.primary),
-            const SizedBox(width: 16),
-            _legend('Profit', AppColors.success),
-          ]),
-          const SizedBox(height: 16),
-          // Bars
-          SizedBox(
-            height: 120,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: dataPoints.map((dp) {
-                final ratio = maxVal > 0 ? dp.value / maxVal : 0.0;
-                final ratio2 = maxVal > 0 && dp.value2 != null
-                    ? (dp.value2! / maxVal)
-                    : 0.0;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // Bars
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            _bar(ratio, AppColors.primary, 100),
-                            const SizedBox(width: 2),
-                            if (dp.value2 != null)
-                              _bar(ratio2, AppColors.success, 100),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(dp.label,
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: isDark
-                                    ? AppColors.darkText3
-                                    : AppColors.lightText3)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+
+    return SizedBox(
+      height: 180,
+      child: LineChart(
+        LineChartData(
+          minY: 0,
+          maxY: maxY * 1.2,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 4,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: isDark
+                  ? Colors.white.withOpacity(0.06)
+                  : Colors.black.withOpacity(0.05),
+              strokeWidth: 1,
             ),
           ),
-        ],
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (v, _) {
+                  final i = v.toInt();
+                  if (i < 0 || i >= data.length) return const SizedBox();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      data[i]['day']?.toString() ?? '',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark
+                            ? AppColors.darkText3
+                            : AppColors.lightText3,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                },
+                reservedSize: 28,
+              ),
+            ),
+          ),
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (spots) => spots.map((s) =>
+                  LineTooltipItem(
+                    'Rs. ${s.y.toStringAsFixed(0)}',
+                    const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                  )).toList(),
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: AppColors.primary,
+              barWidth: 2.5,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                  radius: 3.5,
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                  strokeColor: isDark
+                      ? AppColors.darkCard
+                      : AppColors.lightCard,
+                ),
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primary.withOpacity(0.18),
+                    AppColors.primary.withOpacity(0.0),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  Widget _bar(double ratio, Color color, double maxH) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOut,
-      width: 10,
-      height: (ratio * maxH).clamp(4, maxH),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-
-  Widget _legend(String label, Color color) {
-    return Row(children: [
-      Container(
-          width: 10, height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 11)),
-    ]);
   }
 }
